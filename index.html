@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0e1317">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Shift Pay">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<title>Shift Pay Log</title>
+<style>
+/* Layout: one narrow column like a pocket timesheet. Sticky week bar, totals, seven day rows, breakdown, budget, settings. */
+:root {
+  --bg: #0e1317; --surface: #161d23; --surface-2: #1d262d; --line: #2a3640;
+  --fg: #e8edf0; --muted: #8c9aa4; --accent: #ffb21f; --accent-ink: #1b1300;
+  --steel: #7fa6c4; --good: #52c48d; --warn: #ff8259;
+  --c1: #ffb21f; --c2: #7fa6c4; --c3: #52c48d; --c4: #e5739a; --c5: #a68cf0; --c6: #4fc7c7; --c7: #c9cdd1;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f2f4f5; --surface: #ffffff; --surface-2: #eef1f3; --line: #d6dde2;
+    --fg: #11181d; --muted: #586670; --accent: #b26a00; --accent-ink: #ffffff;
+    --steel: #3e6d91; --good: #1c8853; --warn: #c2461d;
+    --c1: #d18a00; --c2: #3e6d91; --c3: #1c8853; --c4: #c2476f; --c5: #6f55c9; --c6: #198f8f; --c7: #7b858c;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f2f4f5; --surface: #ffffff; --surface-2: #eef1f3; --line: #d6dde2;
+  --fg: #11181d; --muted: #586670; --accent: #b26a00; --accent-ink: #ffffff;
+  --steel: #3e6d91; --good: #1c8853; --warn: #c2461d;
+  --c1: #d18a00; --c2: #3e6d91; --c3: #1c8853; --c4: #c2476f; --c5: #6f55c9; --c6: #198f8f; --c7: #7b858c;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-size: 15px; }
+[hidden] { display: none !important; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 48px; display: flex; flex-direction: column; gap: 22px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* week bar */
+.weekbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 12px 10px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+.weekbar .mid { flex: 1; min-width: 0; text-align: center; }
+.weekbar .range { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: .02em; line-height: 1.1; }
+.weekbar .pay { font-size: 13px; color: var(--muted); }
+.navbtn { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-size: 18px; flex: none; }
+.today-link { background: none; border: 0; color: var(--accent); font-size: 13px; padding: 0 4px; text-decoration: underline; }
+
+.notice { font-size: 13px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); color: var(--muted); display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.notice b { color: var(--fg); font-weight: 600; }
+.notice button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+
+/* totals */
+.totals { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.totals > div { background: var(--surface); padding: 12px 14px; min-width: 0; }
+.totals .big { grid-column: 1 / -1; padding: 16px 14px 14px; }
+.lbl { font-family: var(--display); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.totals .val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 500; }
+.totals .big .val { font-family: var(--display); font-weight: 700; font-size: 46px; line-height: 1; color: var(--accent); letter-spacing: .01em; }
+.totals .sub { font-size: 12px; color: var(--muted); }
+
+/* day list */
+.days { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.day + .day { border-top: 1px solid var(--line); }
+.dayhead { width: 100%; display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; background: none; border: 0; text-align: left; }
+.dayhead .dn { font-family: var(--display); font-weight: 700; font-size: 20px; line-height: 1; }
+.dayhead .dd { font-size: 12px; color: var(--muted); }
+.dayhead .info { min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.chip.t-night { color: var(--steel); border-color: color-mix(in srgb, var(--steel) 45%, transparent); }
+.chip.t-weekend, .chip.t-ph { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.chip.t-union { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.chip.add { color: var(--fg); background: var(--surface-2); border-color: transparent; }
+.dayhead .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 15px; text-align: right; }
+.dayhead .amt.zero { color: var(--muted); }
+.day.is-today .dn { color: var(--accent); }
+.day.open { background: var(--surface-2); }
+
+.editor { padding: 4px 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button { border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 8px 11px; font-size: 14px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > label, .field > .flabel { font-size: 13px; color: var(--muted); }
+.stepper { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
+.stepper button { width: 44px; border: 1px solid var(--line); background: var(--surface); border-radius: 9px; font-size: 20px; }
+.stepper input { width: 96px; text-align: center; font-family: var(--mono); font-size: 20px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.stepper .quick { align-items: center; }
+.quick button, .stepper .quick button { width: auto; min-width: 56px; white-space: nowrap; font-size: 13px; border: 1px dashed var(--line); background: none; border-radius: 8px; padding: 4px 9px; font-size: 13px; color: var(--muted); font-family: var(--mono); }
+.hint { font-size: 12px; color: var(--muted); }
+.toggles { display: flex; flex-direction: column; gap: 8px; }
+.tog { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.tog input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.tog .cost { margin-left: auto; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+.lines { border-top: 1px dashed var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.line { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.line span:first-child { color: var(--muted); min-width: 0; }
+.line span:last-child { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.line.total span { color: var(--fg); font-weight: 600; }
+.saved { font-size: 12px; color: var(--good); min-height: 1em; }
+
+/* breakdown + budget panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+.bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--surface-2); margin: 4px 0 10px; }
+.bar i { display: block; height: 100%; }
+.brow { display: grid; grid-template-columns: 14px 1fr auto auto; gap: 10px; align-items: center; padding: 9px 0; font-size: 18.5px; }
+.brow + .brow { border-top: 1px solid var(--line); }
+.brow .sw { width: 14px; height: 14px; border-radius: 3px; }
+.brow .pct { font-family: var(--mono); font-size: 16px; color: var(--muted); }
+.brow .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 500; text-align: right; min-width: 100px; }
+.brow .nm { min-width: 0; }
+.brow .nm small { display: block; color: var(--muted); font-size: 16px; line-height: 1.3; }
+#budgetWarn { font-size: 15px; }
+.warn { color: var(--warn); font-size: 13px; }
+
+/* history */
+.hist { display: flex; flex-direction: column; }
+.hist button { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; background: none; border: 0; border-top: 1px solid var(--line); text-align: left; font-size: 14px; }
+.hist button:first-child { border-top: 0; }
+.hist button span:last-child { font-family: var(--mono); }
+.hist button.cur span:first-child { color: var(--accent); }
+
+/* settings */
+details.panel > summary { cursor: pointer; font-family: var(--display); font-weight: 600; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); list-style: none; display: flex; justify-content: space-between; }
+details.panel > summary::after { content: "+"; font-family: var(--mono); }
+details.panel[open] > summary::after { content: "−"; }
+.sgroup { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; }
+.sgroup h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.srow { display: grid; grid-template-columns: 1fr 110px; gap: 10px; align-items: center; font-size: 14px; }
+.srow label { min-width: 0; color: var(--muted); }
+.srow input[type="number"], .srow select, .brow-edit input, .brow-edit select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-family: var(--mono); font-size: 14px; }
+.srow input[type="checkbox"] { justify-self: end; width: 20px; height: 20px; accent-color: var(--accent); }
+.brow-edit { display: grid; grid-template-columns: 1fr 80px 62px; gap: 8px; align-items: center; font-size: 14px; }
+.brow-edit span { min-width: 0; }
+.resetbtn { align-self: flex-start; border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 7px 12px; font-size: 13px; margin-top: 6px; }
+.assume { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.assume b { color: var(--fg); font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) { .bar i { transition: width .25s ease; } }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header class="weekbar">
+    <button class="navbtn" id="prev" aria-label="Previous week">‹</button>
+    <div class="mid">
+      <div class="range" id="range">Week</div>
+      <div class="pay" id="paydate">Paid Wednesday</div>
+    </div>
+    <button class="navbtn" id="next" aria-label="Next week">›</button>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <section aria-label="This week's pay">
+    <div class="totals">
+      <div class="big">
+        <div class="lbl">Take-home (est.)</div>
+        <div class="val" id="tNet">$0</div>
+        <div class="sub" id="tNetSub"></div>
+      </div>
+      <div><div class="lbl">Gross</div><div class="val" id="tGross">$0</div></div>
+      <div><div class="lbl">Tax withheld</div><div class="val" id="tTax">$0</div></div>
+      <div><div class="lbl">Paid hours</div><div class="val" id="tHours">0</div></div>
+      <div><div class="lbl">Avg per paid hr</div><div class="val" id="tAvg">$0</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Log your shifts</h2>
+    <div class="days" id="days"></div>
+    <button class="resetbtn" id="fillWeek">Fill Mon–Fri with standard 8.5h nights</button>
+    <p class="hint">Log a night shift on the day it starts. Tap a day to change it. Changes save as you go.</p>
+  </section>
+
+  <section>
+    <h2>Pay breakdown</h2>
+    <div class="panel" id="breakdown"></div>
+  </section>
+
+  <section>
+    <h2>Where this week's pay goes</h2>
+    <div class="panel">
+      <div class="bar" id="budgetBar"></div>
+      <div id="budgetRows"></div>
+      <div class="warn" id="budgetWarn" hidden></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Recent weeks</h2>
+    <div class="panel hist" id="history"></div>
+  </section>
+
+  <details class="panel" id="backupBox">
+    <summary>Backup and restore</summary>
+    <div class="sgroup">
+      <span class="hint">Your log is saved only on this device. Copy a backup and keep it in your notes or email it to yourself. To move to a new phone, paste it in below.</span>
+      <button class="resetbtn" id="copyBackup">Copy backup</button>
+      <label class="hint" for="backupText">Backup text</label>
+      <textarea id="backupText" rows="4" style="width:100%;font-family:var(--mono);font-size:12px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)" placeholder="Paste a backup here to restore it"></textarea>
+      <button class="resetbtn" id="restoreBackup">Restore from backup</button>
+      <span class="saved" id="backupMsg" role="status"></span>
+    </div>
+  </details>
+
+  <details class="panel" id="settingsBox">
+    <summary>Rates, tax and budget settings</summary>
+    <div id="settings"></div>
+  </details>
+
+  <details class="panel">
+    <summary>How the maths works</summary>
+    <ul class="assume" style="padding-top:14px">
+      <li><b>Hours you enter are on-site hours</b>, including your unpaid break. The app takes the break off before working out pay.</li>
+      <li><b>Weeknight:</b> paid hours up to the first overtime point are base + night loading. Hours between the first and second points are the first multiplier x base + loading. Hours after the second point are the second multiplier x base + loading.</li>
+      <li><b>Weekend:</b> the weekend multiplier x base for every paid hour. Turn on "Add night loading on weekends" if your award adds it.</li>
+      <li><b>Public holiday:</b> the public holiday multiplier x base + loading for every paid hour, plus any bonus hours at base.</li>
+      <li><b>Union site:</b> the union rate x the union multiplier, plus the site allowance you enter on the day, for every paid hour.</li>
+      <li><b>Hyrail</b> is paid per paid hour. <b>On-call</b> is paid per day. <b>Living away from home</b> is paid per night. Set these to 0 if you don't get them.</li>
+      <li><b>Minimum hours:</b> if you set guaranteed weekly hours and turn on the top-up, a short week is topped up at base + loading.</li>
+      <li><b>Tax</b> is an estimate of PAYG withholding at 2026-27 Australian resident rates plus the 2% Medicare levy, treating the week as 1/52 of a year. Your payslip may differ slightly.</li>
+      <li><b>Victorian public holidays</b> for 2026 and 2027 are marked. Melbourne Cup Day is metro Melbourne only.</li>
+      <li><b>Your privacy:</b> nothing you enter leaves this device. There is no account and no server, and nobody else can see your figures. Clearing your browser data deletes your log, so copy a backup now and then.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- defaults ----------
+  const DEFAULT_SETTINGS = {
+    base: 0, loadingPct: 30, breakHrs: 0.5,
+    t1Start: 8.5, t1Mult: 1.5, t2Start: 10.5, t2Mult: 2,
+    weekendMult: 2, weekendLoading: false,
+    phMult: 2, phBonusHrs: 8,
+    unionRate: 56.5, unionMult: 2, siteDefault: 7.5,
+    hyrail: 5, oncall: 100, lafh: 150,
+    minHours: 40, topUp: true,
+    taxOn: true, taxFree: true, medicare: true, extraTax: 0
+  };
+  const DEFAULT_BUDGET = [
+    { key: "rent", name: "Rent", mode: "pct", value: 0 },
+    { key: "bills", name: "Bills", mode: "pct", value: 0 },
+    { key: "food", name: "Food", mode: "pct", value: 0 },
+    { key: "loans", name: "Loan repayments", mode: "pct", value: 0 },
+    { key: "saving", name: "Saving", mode: "pct", value: 0 },
+    { key: "investing", name: "Investing", mode: "pct", value: 0 }
+  ];
+  const BUDGET_COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)", "var(--c6)"];
+  const TYPES = [
+    { k: "off", label: "Off" },
+    { k: "night", label: "Weeknight" },
+    { k: "weekend", label: "Weekend" },
+    { k: "ph", label: "Public holiday" },
+    { k: "union", label: "Union site" }
+  ];
+  const TYPE_LABEL = Object.fromEntries(TYPES.map(t => [t.k, t.label]));
+
+  // ---------- state ----------
+  let settings = { ...DEFAULT_SETTINGS };
+  let budget = DEFAULT_BUDGET.map(b => ({ ...b }));
+  let days = {};          // "YYYY-MM-DD" -> entry
+  let isExample = false;
+  let openDay = null;
+  let weekStart = mondayOf(new Date());
+  let db = null, mode = "loading", ROOT = "";
+
+  // ---------- dates ----------
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function mondayOf(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const wd = (x.getDay() + 6) % 7; return addDays(x, -wd); }
+  function fromIso(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  function short(d) { return d.getDate() + " " + MON[d.getMonth()]; }
+
+  // ---------- money ----------
+  const fmt = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt0 = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 });
+  function money(v) { return fmt.format(v || 0); }
+  function round2(v) { return Math.round(v * 100) / 100; }
+  function hrs(v) { return (Math.round(v * 100) / 100).toString(); }
+
+  // ---------- pay rules ----------
+  // Victorian public holidays (state-wide; Melbourne Cup Day is metro Melbourne).
+  const VIC_PH = {
+    "2026-01-01": "New Year's Day", "2026-01-26": "Australia Day", "2026-03-09": "Labour Day",
+    "2026-04-03": "Good Friday", "2026-04-04": "Easter Saturday", "2026-04-05": "Easter Sunday", "2026-04-06": "Easter Monday",
+    "2026-04-25": "Anzac Day", "2026-06-08": "King's Birthday", "2026-09-25": "AFL Grand Final Friday",
+    "2026-11-03": "Melbourne Cup Day", "2026-12-25": "Christmas Day", "2026-12-26": "Boxing Day", "2026-12-28": "Boxing Day (additional)",
+    "2027-01-01": "New Year's Day", "2027-01-26": "Australia Day", "2027-03-08": "Labour Day",
+    "2027-03-26": "Good Friday", "2027-03-27": "Easter Saturday", "2027-03-28": "Easter Sunday", "2027-03-29": "Easter Monday",
+    "2027-04-25": "Anzac Day", "2027-06-14": "King's Birthday", "2027-11-02": "Melbourne Cup Day",
+    "2027-12-25": "Christmas Day", "2027-12-26": "Boxing Day", "2027-12-27": "Christmas Day (additional)", "2027-12-28": "Boxing Day (additional)"
+  };
+  function defaultType(dateIso) { if (VIC_PH[dateIso]) return "ph"; const wd = fromIso(dateIso).getDay(); return (wd === 0 || wd === 6) ? "weekend" : "night"; }
+  function blankEntry(dateIso) { return { type: "off", hours: 0, site: settings.siteDefault, hyrail: false, oncall: false, lafh: false }; }
+
+  function calcDay(e, s) {
+    const lines = [];
+    const B = s.base, L = B * s.loadingPct / 100;
+    const onsite = Math.max(0, Number(e.hours) || 0);
+    const working = e.type !== "off" && onsite > 0;
+    const paid = working ? Math.max(0, onsite - s.breakHrs) : 0;
+    if (e.type === "night" && paid > 0) {
+      const p1 = Math.max(0, s.t1Start - s.breakHrs), p2 = Math.max(p1, s.t2Start - s.breakHrs);
+      const ord = Math.min(paid, p1), ot1 = Math.max(0, Math.min(paid, p2) - p1), ot2 = Math.max(0, paid - p2);
+      const r0 = B + L, r1 = B * s.t1Mult + L, r2 = B * s.t2Mult + L;
+      if (ord) lines.push({ k: "Ordinary night (up to " + s.t1Start + "h on site)", h: ord, r: r0, v: ord * r0 });
+      if (ot1) lines.push({ k: s.t1Mult + "x (" + s.t1Start + "–" + s.t2Start + "h on site)", h: ot1, r: r1, v: ot1 * r1 });
+      if (ot2) lines.push({ k: s.t2Mult + "x (after " + s.t2Start + "h on site)", h: ot2, r: r2, v: ot2 * r2 });
+    } else if (e.type === "weekend" && paid > 0) {
+      const r = B * s.weekendMult + (s.weekendLoading ? L : 0);
+      lines.push({ k: "Weekend " + s.weekendMult + "x", h: paid, r, v: paid * r });
+    } else if (e.type === "ph") {
+      const r = B * s.phMult + L;
+      if (paid) lines.push({ k: "Public holiday " + s.phMult + "x + loading", h: paid, r, v: paid * r });
+      if (s.phBonusHrs) lines.push({ k: "Public holiday bonus", h: s.phBonusHrs, r: B, v: s.phBonusHrs * B });
+    } else if (e.type === "union" && paid > 0) {
+      const r = s.unionRate * s.unionMult;
+      const site = Number(e.site) || 0;
+      lines.push({ k: "Union rate " + s.unionMult + "x", h: paid, r, v: paid * r });
+      if (site) lines.push({ k: "Site allowance", h: paid, r: site, v: paid * site });
+    }
+    if (e.hyrail && paid > 0) lines.push({ k: "Hyrail", h: paid, r: s.hyrail, v: paid * s.hyrail });
+    if (e.oncall) lines.push({ k: "On-call", v: s.oncall, flat: true });
+    if (e.lafh) lines.push({ k: "Living away from home", v: s.lafh, flat: true });
+    const total = lines.reduce((a, l) => a + l.v, 0);
+    return { lines, paid, total: round2(total) };
+  }
+
+  // 2026-27 resident rates (Stage 3 with the 1 July 2026 cut to 15%).
+  function annualTax(income, s) {
+    const brackets = s.taxFree
+      ? [[18200, 0], [45000, .15], [135000, .30], [190000, .37], [Infinity, .45]]
+      : [[45000, .15], [135000, .30], [190000, .37], [Infinity, .45]];
+    let tax = 0, prev = 0;
+    for (const [top, rate] of brackets) {
+      if (income > prev) tax += (Math.min(income, top) - prev) * rate;
+      prev = top;
+    }
+    if (s.taxFree) { // low income tax offset
+      let lito = 700;
+      if (income > 37500) lito -= (Math.min(income, 45000) - 37500) * .05;
+      if (income > 45000) lito -= (income - 45000) * .015;
+      tax -= Math.max(0, lito);
+      tax = Math.max(0, tax);
+    }
+    if (s.medicare) { // levy with low-income shade-in
+      const lo = 27222, hi = 34027;
+      if (income > hi) tax += income * .02; else if (income > lo) tax += (income - lo) * .1;
+    }
+    return tax;
+  }
+  function weeklyTax(gross, s) {
+    if (!s.taxOn || gross <= 0) return 0;
+    return Math.round(annualTax(gross * 52, s) / 52) + (Number(s.extraTax) || 0);
+  }
+
+  function calcWeek(startDate) {
+    const out = { gross: 0, paid: 0, counted: 0, logged: false, days: [], groups: {} };
+    for (let i = 0; i < 7; i++) {
+      const id = iso(addDays(startDate, i));
+      const e = days[id];
+      const r = e ? calcDay(e, settings) : { lines: [], paid: 0, total: 0 };
+      out.days.push({ id, e, r });
+      out.gross += r.total; out.paid += r.paid;
+      if (e && e.type !== "off") out.logged = true;
+      if (e && e.type === "ph") out.counted += Math.max(r.paid, settings.phBonusHrs || 0); else out.counted += r.paid;
+      for (const l of r.lines) {
+        const g = out.groups[l.k] || (out.groups[l.k] = { h: 0, v: 0, flat: l.flat, n: 0 });
+        g.h += l.h || 0; g.v += l.v; g.n += 1;
+      }
+    }
+    const minH = Number(settings.minHours) || 0;
+    if (settings.topUp && out.logged && out.counted < minH) {
+      const th = minH - out.counted, rate = settings.base * (1 + settings.loadingPct / 100);
+      out.topUp = th;
+      out.groups["Top-up to " + minH + " guaranteed hours"] = { h: th, v: th * rate, n: 1 };
+      out.gross += th * rate;
+    }
+    out.gross = round2(out.gross);
+    out.tax = weeklyTax(out.gross, settings);
+    out.net = round2(out.gross - out.tax);
+    return out;
+  }
+
+  function splitBudget(net) {
+    let used = 0;
+    const rows = budget.map((b, i) => {
+      const amt = b.mode === "pct" ? net * (Number(b.value) || 0) / 100 : (Number(b.value) || 0);
+      used += amt;
+      return { ...b, amt, color: BUDGET_COLORS[i % BUDGET_COLORS.length] };
+    });
+    rows.push({ key: "disposable", name: "Disposable income", amt: net - used, color: "var(--c7)", rest: true });
+    return rows;
+  }
+
+  // ---------- example week (shown only while nothing is saved) ----------
+  function exampleDays() {
+    const m = mondayOf(new Date()), d = i => iso(addDays(m, i));
+    return {
+      [d(0)]: { type: "night", hours: 10.5, site: 7.5, hyrail: false, oncall: false, lafh: false },
+      [d(1)]: { type: "night", hours: 10.5, site: 7.5, hyrail: true, oncall: false, lafh: false },
+      [d(2)]: { type: "union", hours: 8.5, site: 7.5, hyrail: false, oncall: false, lafh: true },
+      [d(3)]: { type: "union", hours: 8.5, site: 7.5, hyrail: false, oncall: false, lafh: true },
+      [d(4)]: { type: "off", hours: 0, site: 7.5, hyrail: false, oncall: true, lafh: false }
+    };
+  }
+
+  // ---------- storage ----------
+  const LS_KEY = "shiftpay.v1";
+  function lsLoad() {
+    try { const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : null; } catch (_) { return null; }
+  }
+  function lsSave() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ days, settings, budget })); } catch (_) {}
+  }
+  const timers = {}, pending = new Set();
+  function persistDay(id) {
+    clearTimeout(timers[id]);
+    if (mode !== "db") lsSave();
+    pending.add(id);
+    timers[id] = setTimeout(async () => {
+      pending.delete(id);
+      const e = days[id];
+      if (mode === "db") {
+        try {
+          const ref = db.doc(ROOT + "/log/days/" + id);
+          if (!e || (e.type === "off" && !e.oncall && !e.lafh && !e.hyrail)) await ref.delete();
+          else await ref.set({ ...e, date: id });
+          flashSaved(id);
+        } catch (err) { showNotice("Couldn't save " + id + ": " + (err && err.message || "try again") + ".", false); }
+      } else { lsSave(); flashSaved(id); }
+    }, 350);
+  }
+  function persistSettings() {
+    clearTimeout(timers._s);
+    if (mode !== "db") lsSave();
+    timers._s = setTimeout(async () => {
+      if (mode === "db") {
+        try { await db.doc(ROOT + "/settings").set({ settings, budget }); }
+        catch (err) { showNotice("Couldn't save settings: " + (err && err.message || "try again") + ".", false); }
+      } else lsSave();
+    }, 400);
+  }
+  function flashSaved(id) {
+    const el = document.querySelector('[data-saved="' + id + '"]');
+    if (el) { el.textContent = "Saved"; setTimeout(() => { if (el.isConnected) el.textContent = ""; }, 1500); }
+  }
+
+  // ---------- UI helpers ----------
+  const $ = id => document.getElementById(id);
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag);
+    if (attrs) for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else if (k === "text") el.textContent = v;
+      else el.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of kids.flat()) if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(c));
+    return el;
+  }
+  function showNotice(text, dismissable, action) {
+    const n = $("notice");
+    n.textContent = "";
+    n.append(h("span", { text }));
+    if (action) n.append(h("button", { onclick: action.fn, text: action.label }));
+    n.hidden = false;
+  }
+
+  // ---------- render ----------
+  function render() {
+    const wk = calcWeek(weekStart);
+    const end = addDays(weekStart, 6), payday = addDays(weekStart, 9), slip = addDays(weekStart, 8);
+    $("range").textContent = short(weekStart) + " – " + short(end) + " " + end.getFullYear();
+    const thisMon = iso(mondayOf(new Date()));
+    const payEl = $("paydate"); payEl.innerHTML = "";
+    payEl.append("Payslip Tue " + short(slip) + " 11:59pm · Paid Wed " + short(payday));
+    if (iso(weekStart) !== thisMon) {
+      payEl.append(" ", h("button", { class: "today-link", onclick: () => { weekStart = mondayOf(new Date()); openDay = null; render(); }, text: "This week" }));
+    }
+
+    $("tNet").textContent = fmt0.format(wk.net);
+    $("tNetSub").textContent = settings.taxOn ? "After estimated PAYG tax" + (settings.medicare ? " and Medicare" : "") : "Tax estimate off: showing gross";
+    $("tGross").textContent = money(wk.gross);
+    $("tTax").textContent = money(wk.tax);
+    $("tHours").textContent = hrs(wk.paid) + (settings.minHours ? " / " + settings.minHours : "");
+    $("tAvg").textContent = wk.paid ? money(wk.gross / wk.paid) : "–";
+
+    renderDays(wk);
+    renderBreakdown(wk);
+    renderBudget(wk.net);
+    renderHistory();
+  }
+
+  function renderDays(wk) {
+    const box = $("days"); box.innerHTML = "";
+    const todayId = iso(new Date());
+    wk.days.forEach(({ id, e, r }, i) => {
+      const d = fromIso(id);
+      const info = h("span", { class: "info" });
+      if (VIC_PH[id]) info.append(h("span", { class: "chip t-ph", text: VIC_PH[id] }));
+      if (!e || (e.type === "off" && !e.oncall && !e.lafh)) info.append(h("span", { class: "chip", text: e ? "Off" : "Not logged" }));
+      else {
+        info.append(h("span", { class: "chip t-" + e.type, text: TYPE_LABEL[e.type] + (e.type !== "off" && e.hours ? " · " + hrs(e.hours) + "h" : "") }));
+        if (e.type === "union" && e.site) info.append(h("span", { class: "chip add", text: "Site $" + Number(e.site).toFixed(2) }));
+        if (e.hyrail && r.paid) info.append(h("span", { class: "chip add", text: "Hyrail" }));
+        if (e.oncall) info.append(h("span", { class: "chip add", text: "On-call" }));
+        if (e.lafh) info.append(h("span", { class: "chip add", text: "Away" }));
+      }
+      const open = openDay === id;
+      const row = h("div", { class: "day" + (open ? " open" : "") + (id === todayId ? " is-today" : "") },
+        h("button", { class: "dayhead", "aria-expanded": open ? "true" : "false", onclick: () => { openDay = open ? null : id; render(); } },
+          h("span", null, h("div", { class: "dn", text: DOW[i] }), h("div", { class: "dd", text: short(d) })),
+          info,
+          h("span", { class: "amt" + (r.total ? "" : " zero"), text: r.total ? money(r.total) : "$0" })
+        )
+      );
+      if (open) row.append(renderEditor(id, r));
+      box.append(row);
+    });
+  }
+
+  function update(id, patch) {
+    if (isExample) { days = {}; isExample = false; $("notice").hidden = true; }
+    const cur = days[id] || blankEntry(id);
+    days[id] = { ...cur, ...patch };
+    persistDay(id);
+    render();
+  }
+
+  function renderEditor(id, r) {
+    const e = days[id] || blankEntry(id);
+    const s = settings;
+    const wrap = h("div", { class: "editor" });
+
+    const seg = h("div", { class: "seg", role: "group", "aria-label": "Shift type" });
+    for (const t of TYPES) {
+      seg.append(h("button", { "aria-pressed": e.type === t.k ? "true" : "false", onclick: () => {
+        const patch = { type: t.k };
+        if (t.k !== "off" && !(Number(e.hours) > 0)) patch.hours = 10.5;
+        update(id, patch);
+      }, text: t.label }));
+    }
+    wrap.append(h("div", { class: "field" }, h("span", { class: "flabel", text: "Shift type" + (e.type === "off" && !days[id] ? " (suggested: " + TYPE_LABEL[defaultType(id)] + ")" : "") }), seg));
+
+    if (e.type !== "off") {
+      const inp = h("input", { id: "hrs-" + id, type: "number", inputmode: "decimal", step: "0.25", min: "0", max: "24", value: hrs(e.hours || 0) });
+      inp.addEventListener("change", () => update(id, { hours: Math.max(0, Math.min(24, Number(inp.value) || 0)) }));
+      const step = d => update(id, { hours: Math.max(0, Math.min(24, (Number(e.hours) || 0) + d)) });
+      const quick = h("div", { class: "quick" }, [8.5, 10.5, 12].map(v => h("button", { onclick: () => update(id, { hours: v }), text: v + "h" })));
+      const paidH = Math.max(0, (Number(e.hours) || 0) - s.breakHrs);
+      wrap.append(h("div", { class: "field" },
+        h("label", { for: "hrs-" + id, text: "Hours on site, including your " + (s.breakHrs * 60) + " min break" }),
+        h("div", { class: "stepper" }, h("button", { "aria-label": "Half an hour less", onclick: () => step(-0.5), text: "−" }), inp, h("button", { "aria-label": "Half an hour more", onclick: () => step(0.5), text: "+" }), quick),
+        h("span", { class: "hint", text: hrs(paidH) + " paid hours" })
+      ));
+    }
+
+    if (e.type === "union") {
+      const si = h("input", { id: "site-" + id, type: "number", inputmode: "decimal", step: "0.05", min: "0", value: Number(e.site ?? s.siteDefault).toFixed(2) });
+      si.addEventListener("change", () => update(id, { site: Math.max(0, Number(si.value) || 0) }));
+      wrap.append(h("div", { class: "field" },
+        h("label", { for: "site-" + id, text: "Site allowance per hour" }),
+        h("div", { class: "stepper" }, si, h("div", { class: "quick" }, [3.75, 7.5, 11].map(v => h("button", { onclick: () => update(id, { site: v }), text: "$" + v.toFixed(2) }))))
+      ));
+    }
+
+    const tog = (key, label, cost) => {
+      const cb = h("input", { type: "checkbox", id: key + "-" + id, checked: !!e[key] });
+      cb.addEventListener("change", () => update(id, { [key]: cb.checked }));
+      return h("label", { class: "tog", for: key + "-" + id }, cb, label, h("span", { class: "cost", text: cost }));
+    };
+    const tg = h("div", { class: "toggles" });
+    if (e.type !== "off") tg.append(tog("hyrail", "Hyrail", "$" + s.hyrail + "/h"));
+    tg.append(tog("oncall", "On-call", money(s.oncall)), tog("lafh", "Living away from home", money(s.lafh) + "/night"));
+    wrap.append(h("div", { class: "field" }, h("span", { class: "flabel", text: "Extras" }), tg));
+
+    const lines = h("div", { class: "lines" });
+    for (const l of r.lines) lines.append(h("div", { class: "line" }, h("span", { text: l.flat ? l.k : l.k + " · " + hrs(l.h) + "h × " + money(l.r) }), h("span", { text: money(l.v) })));
+    lines.append(h("div", { class: "line total" }, h("span", { text: "Day total (gross)" }), h("span", { text: money(r.total) })));
+    wrap.append(lines);
+    wrap.append(h("div", { class: "saved", "data-saved": id }));
+    return wrap;
+  }
+
+  function renderBreakdown(wk) {
+    const box = $("breakdown"); box.innerHTML = "";
+    const keys = Object.keys(wk.groups);
+    if (!keys.length) { box.append(h("div", { class: "hint", text: "Nothing logged this week yet. Tap a day above to add a shift." })); return; }
+    for (const k of keys) {
+      const g = wk.groups[k];
+      box.append(h("div", { class: "line" }, h("span", { text: g.flat ? k + " × " + g.n : k + " · " + hrs(g.h) + "h" }), h("span", { text: money(g.v) })));
+    }
+    box.append(h("div", { class: "line total" }, h("span", { text: "Gross pay" }), h("span", { text: money(wk.gross) })));
+    if (settings.taxOn) {
+      box.append(h("div", { class: "line" }, h("span", { text: "Estimated tax withheld" }), h("span", { text: "−" + money(wk.tax) })));
+      box.append(h("div", { class: "line total" }, h("span", { text: "Take-home" }), h("span", { text: money(wk.net) })));
+    }
+  }
+
+  function renderBudget(net) {
+    const rows = splitBudget(net);
+    const bar = $("budgetBar"), list = $("budgetRows"); bar.innerHTML = ""; list.innerHTML = "";
+    const pos = Math.max(net, 0.01);
+    for (const r of rows) {
+      const w = Math.max(0, r.amt) / pos * 100;
+      if (w > 0) { const seg = document.createElement("i"); seg.style.width = w + "%"; seg.style.background = r.color; seg.title = r.name; bar.append(seg); }
+      const pct = net > 0 ? Math.round(r.amt / net * 100) + "%" : "";
+      list.append(h("div", { class: "brow" },
+        h("span", { class: "sw", style: "background:" + r.color }),
+        h("span", { class: "nm" }, r.name, r.rest ? h("small", { text: "Whatever is left" }) : (r.note ? h("small", { text: r.note }) : (r.mode === "fixed" ? h("small", { text: "Fixed amount" }) : null))),
+        h("span", { class: "pct", text: pct }),
+        h("span", { class: "amt", text: money(r.amt) })
+      ));
+    }
+    const left = rows[rows.length - 1].amt;
+    const warn = $("budgetWarn");
+    warn.hidden = !(left < -0.005);
+    if (left < -0.005) warn.textContent = "Your budget is " + money(-left) + " more than this week's take-home. Lower a category in settings.";
+  }
+
+  function renderHistory() {
+    const box = $("history"); box.innerHTML = "";
+    const thisMon = mondayOf(new Date());
+    for (let i = 0; i < 6; i++) {
+      const m = addDays(thisMon, -7 * i);
+      const wk = calcWeek(m);
+      const cur = iso(m) === iso(weekStart);
+      box.append(h("button", { class: cur ? "cur" : "", onclick: () => { weekStart = m; openDay = null; render(); window.scrollTo({ top: 0 }); } },
+        h("span", { text: (i === 0 ? "This week · " : i === 1 ? "Last week · " : "") + short(m) + " – " + short(addDays(m, 6)) }),
+        h("span", { text: wk.gross ? fmt0.format(wk.net) + " net" : "–" })
+      ));
+    }
+  }
+
+  // ---------- settings ----------
+  const SETTING_FIELDS = [
+    ["Base pay", [
+      ["base", "Base hourly rate ($)"], ["loadingPct", "Night shift loading (%)"], ["breakHrs", "Unpaid break (hours)"],
+      ["t1Start", "First overtime tier starts after (on-site hours)"], ["t1Mult", "First tier multiplier"],
+      ["t2Start", "Second overtime tier starts after (on-site hours)"], ["t2Mult", "Second tier multiplier"]
+    ]],
+    ["Weekends and public holidays", [
+      ["weekendMult", "Weekend multiplier"], ["weekendLoading", "Add night loading on weekends", "bool"],
+      ["phMult", "Public holiday multiplier (plus loading)"], ["phBonusHrs", "Public holiday bonus (hours at base)"]
+    ]],
+    ["Union sites", [
+      ["unionRate", "Union hourly rate ($)"], ["unionMult", "Union multiplier"], ["siteDefault", "Usual site allowance ($/h)"]
+    ]],
+    ["Allowances", [
+      ["hyrail", "Hyrail ($ per hour)"], ["oncall", "On-call ($ per day)"], ["lafh", "Living away from home ($ per night)"]
+    ]],
+    ["Full-time minimum", [
+      ["minHours", "Guaranteed paid hours a week"], ["topUp", "Top up short weeks to the minimum", "bool"]
+    ]],
+    ["Tax", [
+      ["taxOn", "Estimate tax", "bool"], ["taxFree", "Claiming the tax-free threshold", "bool"],
+      ["medicare", "Include Medicare levy", "bool"], ["extraTax", "Extra withheld each week ($, e.g. HELP)"]
+    ]]
+  ];
+
+  function renderSettings() {
+    const box = $("settings"); box.innerHTML = "";
+    for (const [title, fields] of SETTING_FIELDS) {
+      const g = h("div", { class: "sgroup" }, h("h3", { text: title }));
+      for (const [key, label, kind] of fields) {
+        const id = "set-" + key;
+        let inp;
+        if (kind === "bool") {
+          inp = h("input", { id, type: "checkbox", checked: !!settings[key] });
+          inp.addEventListener("change", () => { settings[key] = inp.checked; persistSettings(); render(); });
+        } else {
+          inp = h("input", { id, type: "number", inputmode: "decimal", step: "any", value: settings[key] });
+          inp.addEventListener("change", () => { const v = Number(inp.value); if (isFinite(v)) { settings[key] = v; persistSettings(); render(); } });
+        }
+        g.append(h("div", { class: "srow" }, h("label", { for: id, text: label }), inp));
+      }
+      box.append(g);
+    }
+    const bg = h("div", { class: "sgroup" }, h("h3", { text: "Budget split" }), h("span", { class: "hint", text: "Set each category as a % of take-home or a fixed $ amount. Disposable income gets whatever is left." }));
+    budget.forEach((b, i) => {
+      const v = h("input", { id: "bud-" + b.key, type: "number", inputmode: "decimal", step: "any", min: "0", value: b.value, "aria-label": b.name + " amount" });
+      v.addEventListener("change", () => { budget[i].value = Math.max(0, Number(v.value) || 0); persistSettings(); render(); });
+      const m = h("select", { id: "budm-" + b.key, "aria-label": b.name + " unit" }, h("option", { value: "pct", text: "%", selected: b.mode === "pct" }), h("option", { value: "fixed", text: "$", selected: b.mode === "fixed" }));
+      m.addEventListener("change", () => { budget[i].mode = m.value; persistSettings(); render(); });
+      bg.append(h("div", { class: "brow-edit" }, h("span", { text: b.name }), v, m));
+    });
+    box.append(bg);
+    box.append(h("button", { class: "resetbtn", onclick: () => {
+      settings = { ...DEFAULT_SETTINGS }; budget = DEFAULT_BUDGET.map(b => ({ ...b }));
+      persistSettings(); renderSettings(); render();
+    }, text: "Reset rates and budget to defaults" }));
+  }
+
+  // ---------- events ----------
+  $("fillWeek").addEventListener("click", () => {
+    if (isExample) { days = {}; isExample = false; $("notice").hidden = true; }
+    for (let i = 0; i < 5; i++) {
+      const id = iso(addDays(weekStart, i));
+      if (days[id]) continue;
+      days[id] = { ...blankEntry(id), type: defaultType(id), hours: 8.5 };
+      persistDay(id);
+    }
+    render();
+  });
+  $("copyBackup").addEventListener("click", () => {
+    const text = JSON.stringify({ app: "shiftpay", v: 1, days, settings, budget });
+    const ta = $("backupText"); ta.value = text;
+    const done = () => { $("backupMsg").textContent = "Backup copied. Paste it somewhere safe."; };
+    try {
+      navigator.clipboard.writeText(text).then(done, () => { ta.select(); $("backupMsg").textContent = "Backup selected below. Copy it with your phone's copy button."; });
+    } catch (_) { ta.select(); $("backupMsg").textContent = "Backup selected below. Copy it with your phone's copy button."; }
+  });
+  let restoreArmed = false;
+  $("restoreBackup").addEventListener("click", () => {
+    let data;
+    try { data = JSON.parse($("backupText").value); } catch (_) { data = null; }
+    if (!data || data.app !== "shiftpay") { $("backupMsg").textContent = "That doesn't look like a backup from this app. Paste the whole text."; return; }
+    if (!restoreArmed) { restoreArmed = true; $("restoreBackup").textContent = "Tap again to replace your current log"; return; }
+    restoreArmed = false; $("restoreBackup").textContent = "Restore from backup";
+    days = cleanDays(data.days); applyLoaded(data); lsSave(); renderSettings(); render();
+    $("backupMsg").textContent = "Restored " + Object.keys(days).length + " days.";
+  });
+  $("prev").addEventListener("click", () => { weekStart = addDays(weekStart, -7); openDay = null; render(); });
+  $("next").addEventListener("click", () => { weekStart = addDays(weekStart, 7); openDay = null; render(); });
+
+  function cleanSettings(raw) {
+    const out = { ...DEFAULT_SETTINGS };
+    if (raw && typeof raw === "object") for (const k of Object.keys(DEFAULT_SETTINGS)) {
+      const d = DEFAULT_SETTINGS[k], v = raw[k];
+      if (typeof d === "boolean" && typeof v === "boolean") out[k] = v;
+      else if (typeof d === "number" && typeof v === "number" && isFinite(v) && v >= 0 && v < 1e6) out[k] = v;
+    }
+    return out;
+  }
+  function cleanBudget(raw) {
+    return DEFAULT_BUDGET.map(d => {
+      const b = Array.isArray(raw) ? raw.find(x => x && x.key === d.key) : null;
+      if (!b) return { ...d };
+      const v = Number(b.value);
+      return { ...d, mode: b.mode === "fixed" ? "fixed" : "pct", value: isFinite(v) && v >= 0 ? v : 0,
+        ...(typeof b.note === "string" ? { note: b.note.slice(0, 120) } : {}) };
+    });
+  }
+  function cleanDays(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [id, e] of Object.entries(raw)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(id) || !e || typeof e !== "object") continue;
+      const type = TYPES.some(t => t.k === e.type) ? e.type : "off";
+      const num = (x, max) => { const n = Number(x); return isFinite(n) && n >= 0 ? Math.min(n, max) : 0; };
+      out[id] = { type, hours: num(e.hours, 24), site: num(e.site, 1000), hyrail: !!e.hyrail, oncall: !!e.oncall, lafh: !!e.lafh };
+    }
+    return out;
+  }
+  function applyLoaded(data) {
+    if (data.settings) settings = cleanSettings(data.settings);
+    if (Array.isArray(data.budget) && data.budget.length) budget = cleanBudget(data.budget);
+  }
+  function startExampleIfEmpty() {
+    if (false) {
+      days = exampleDays(); isExample = true;
+      showNotice("Example week. These shifts show how it works. Log your first shift and they disappear.", false,
+        { label: "Clear example", fn: () => { days = {}; isExample = false; $("notice").hidden = true; render(); } });
+    }
+  }
+
+  // first paint without storage
+  startExampleIfEmpty(); renderSettings(); render();
+
+  // local fallback first, then upgrade to the synced store if available
+  const local = lsLoad();
+  if (local) { days = cleanDays(local.days); isExample = false; $("notice").hidden = true; applyLoaded(local); startExampleIfEmpty(); renderSettings(); render(); }
+
+  // Everything is stored on this device only. There is no account and no server.
+  mode = "local";
+  if (!(settings.base > 0)) {
+    showNotice("Start by entering your base hourly rate under Rates, tax and budget settings. Union rates, allowances and the 40 hour minimum are already set from the EBA. Everything you enter stays on this phone.", false,
+      { label: "Open settings", fn: () => { $("settingsBox").open = true; $("settingsBox").scrollIntoView({ behavior: "smooth" }); } });
+  }
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) { window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); }); }
+</script>
+</body>
+</html>
