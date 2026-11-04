@@ -150,6 +150,9 @@ details.panel[open] > summary::after { content: "−"; }
 .srow input[type="checkbox"] { justify-self: end; width: 20px; height: 20px; accent-color: var(--accent); }
 .brow-edit { display: grid; grid-template-columns: 1fr 80px 62px; gap: 8px; align-items: center; font-size: 14px; }
 .brow-edit span { min-width: 0; }
+.brow-group { display: flex; flex-direction: column; gap: 6px; padding-block: 6px; border-top: 1px solid var(--line); }
+.brow-group input[type="text"] { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; }
+.brow-group input[type="text"]::placeholder { color: var(--muted); }
 .resetbtn { align-self: flex-start; border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 7px 12px; font-size: 13px; margin-top: 6px; }
 .assume { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
 .assume b { color: var(--fg); font-weight: 600; }
@@ -704,13 +707,15 @@ details.panel[open] > summary::after { content: "−"; }
       }
       box.append(g);
     }
-    const bg = h("div", { class: "sgroup" }, h("h3", { text: "Budget split" }), h("span", { class: "hint", text: "Set each category as a % of take-home or a fixed $ amount. Disposable income gets whatever is left." }));
+    const bg = h("div", { class: "sgroup" }, h("h3", { text: "Budget split" }), h("span", { class: "hint", text: "Set each category as a % of take-home or a fixed $ amount. Disposable income gets whatever is left. Use the box under each one to note what it covers, and it shows in your weekly split." }));
     budget.forEach((b, i) => {
       const v = h("input", { id: "bud-" + b.key, type: "number", inputmode: "decimal", step: "any", min: "0", value: b.value, "aria-label": b.name + " amount" });
       v.addEventListener("change", () => { budget[i].value = Math.max(0, Number(v.value) || 0); persistSettings(); render(); });
       const m = h("select", { id: "budm-" + b.key, "aria-label": b.name + " unit" }, h("option", { value: "pct", text: "%", selected: b.mode === "pct" }), h("option", { value: "fixed", text: "$", selected: b.mode === "fixed" }));
       m.addEventListener("change", () => { budget[i].mode = m.value; persistSettings(); render(); });
-      bg.append(h("div", { class: "brow-edit" }, h("span", { text: b.name }), v, m));
+      const nt = h("input", { id: "budn-" + b.key, type: "text", maxlength: "120", value: b.note || "", placeholder: ({ rent: "e.g. rent or mortgage, due date", bills: "e.g. power, gas, phone, streaming", food: "e.g. groceries, work lunches", loans: "e.g. car, personal loan", saving: "e.g. emergency fund, holiday", investing: "e.g. ETFs, super top-up" })[b.key] || "What this covers", "aria-label": "What " + b.name + " covers" });
+      nt.addEventListener("change", () => { const t = nt.value.trim().slice(0, 120); if (t) budget[i].note = t; else delete budget[i].note; persistSettings(); render(); });
+      bg.append(h("div", { class: "brow-group" }, h("div", { class: "brow-edit" }, h("span", { text: b.name }), v, m), nt));
     });
     box.append(bg);
     box.append(h("button", { class: "resetbtn", onclick: () => {
