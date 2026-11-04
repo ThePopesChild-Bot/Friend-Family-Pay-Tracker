@@ -18,7 +18,7 @@
 :root {
   --bg: #0e1317; --surface: #161d23; --surface-2: #1d262d; --line: #2a3640;
   --fg: #e8edf0; --muted: #8c9aa4; --accent: #ffb21f; --accent-ink: #1b1300;
-  --steel: #7fa6c4; --good: #52c48d; --warn: #ff8259;
+  --steel: #7fa6c4; --good: #52c48d; --warn: #ff8259; --night: #5fb6ff; --union: #3fe38f;
   --c1: #ffb21f; --c2: #7fa6c4; --c3: #52c48d; --c4: #e5739a; --c5: #a68cf0; --c6: #4fc7c7; --c7: #c9cdd1;
   --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -29,7 +29,7 @@
   :root:not([data-theme="dark"]) {
     --bg: #f2f4f5; --surface: #ffffff; --surface-2: #eef1f3; --line: #d6dde2;
     --fg: #11181d; --muted: #586670; --accent: #b26a00; --accent-ink: #ffffff;
-    --steel: #3e6d91; --good: #1c8853; --warn: #c2461d;
+    --steel: #3e6d91; --good: #1c8853; --warn: #c2461d; --night: #1a78d0; --union: #0f9f55;
     --c1: #d18a00; --c2: #3e6d91; --c3: #1c8853; --c4: #c2476f; --c5: #6f55c9; --c6: #198f8f; --c7: #7b858c;
     color-scheme: light;
   }
@@ -37,7 +37,7 @@
 :root[data-theme="light"] {
   --bg: #f2f4f5; --surface: #ffffff; --surface-2: #eef1f3; --line: #d6dde2;
   --fg: #11181d; --muted: #586670; --accent: #b26a00; --accent-ink: #ffffff;
-  --steel: #3e6d91; --good: #1c8853; --warn: #c2461d;
+  --steel: #3e6d91; --good: #1c8853; --warn: #c2461d; --night: #1a78d0; --union: #0f9f55;
   --c1: #d18a00; --c2: #3e6d91; --c3: #1c8853; --c4: #c2476f; --c5: #6f55c9; --c6: #198f8f; --c7: #7b858c;
   color-scheme: light;
 }
@@ -69,8 +69,8 @@ button { cursor: pointer; }
 
 /* totals */
 .totals { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-.totals > div { background: var(--surface); padding: 12px 14px; min-width: 0; }
-.totals .big { grid-column: 1 / -1; padding: 16px 14px 14px; }
+.totals > div { background: var(--surface); padding: 12px 14px; min-width: 0; text-align: center; }
+.totals .big { grid-column: 1 / -1; padding: 20px 14px 18px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .lbl { font-family: var(--display); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .totals .val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 500; }
 .totals .big .val { font-family: var(--display); font-weight: 700; font-size: 46px; line-height: 1; color: var(--accent); letter-spacing: .01em; }
@@ -84,12 +84,14 @@ button { cursor: pointer; }
 .dayhead .dd { font-size: 12px; color: var(--muted); }
 .dayhead .info { min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
 .chip { font-size: 12px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
-.chip.t-night { color: var(--steel); border-color: color-mix(in srgb, var(--steel) 45%, transparent); }
+.chip.t-night { color: var(--night); border-color: color-mix(in srgb, var(--night) 55%, transparent); background: color-mix(in srgb, var(--night) 10%, transparent); }
 .chip.t-weekend, .chip.t-ph { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
-.chip.t-union { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.chip.t-union { color: var(--union); border-color: color-mix(in srgb, var(--union) 55%, transparent); background: color-mix(in srgb, var(--union) 10%, transparent); }
 .chip.add { color: var(--fg); background: var(--surface-2); border-color: transparent; }
 .dayhead .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 15px; text-align: right; }
 .dayhead .amt.zero { color: var(--muted); }
+.day.unworked .dn, .day.unworked .dd { color: var(--muted); opacity: .6; }
+.day.unworked .chip { opacity: .7; }
 .day.is-today .dn { color: var(--accent); }
 .day.open { background: var(--surface-2); }
 
@@ -539,7 +541,8 @@ details.panel[open] > summary::after { content: "−"; }
         if (e.lafh) info.append(h("span", { class: "chip add", text: "Away" }));
       }
       const open = openDay === id;
-      const row = h("div", { class: "day" + (open ? " open" : "") + (id === todayId ? " is-today" : "") },
+      const worked = !!e && e.type !== "off" && Number(e.hours) > 0;
+      const row = h("div", { class: "day" + (open ? " open" : "") + (id === todayId ? " is-today" : "") + (worked ? "" : " unworked") },
         h("button", { class: "dayhead", "aria-expanded": open ? "true" : "false", onclick: () => { openDay = open ? null : id; render(); } },
           h("span", null, h("div", { class: "dn", text: DOW[i] }), h("div", { class: "dd", text: short(d) })),
           info,
@@ -568,7 +571,7 @@ details.panel[open] > summary::after { content: "−"; }
     for (const t of TYPES) {
       seg.append(h("button", { "aria-pressed": e.type === t.k ? "true" : "false", onclick: () => {
         const patch = { type: t.k };
-        if (t.k !== "off" && !(Number(e.hours) > 0)) patch.hours = 10.5;
+        if (t.k !== "off" && !(Number(e.hours) > 0)) patch.hours = 8.5;
         update(id, patch);
       }, text: t.label }));
     }
