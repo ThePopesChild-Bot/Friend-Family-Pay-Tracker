@@ -514,7 +514,7 @@ details.panel[open] > summary::after { content: "−"; }
     $("tNetSub").textContent = settings.taxOn ? "After estimated PAYG tax" + (settings.medicare ? " and Medicare" : "") : "Tax estimate off: showing gross";
     $("tGross").textContent = money(wk.gross);
     $("tTax").textContent = money(wk.tax);
-    $("tHours").textContent = hrs(wk.paid) + (settings.minHours ? " / " + settings.minHours : "");
+    $("tHours").textContent = hrs(wk.paid + (wk.topUp || 0));
     $("tAvg").textContent = wk.paid ? money(wk.gross / wk.paid) : "–";
 
     renderDays(wk);
