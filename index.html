@@ -628,13 +628,13 @@ details.panel[open] > summary::after { content: "−"; }
       ));
     }
 
-    const tog = (key, label, cost) => {
-      const cb = h("input", { type: "checkbox", id: key + "-" + id, checked: !!e[key] });
+    const tog = (key, label, cost, disabled) => {
+      const cb = h("input", { type: "checkbox", id: key + "-" + id, checked: !!e[key], disabled: !!disabled });
       cb.addEventListener("change", () => update(id, { [key]: cb.checked }));
       return h("label", { class: "tog", for: key + "-" + id }, cb, label, h("span", { class: "cost", text: cost }));
     };
     const tg = h("div", { class: "toggles" });
-    if (e.type !== "off") tg.append(tog("hyrail", "Hyrail", "$" + s.hyrail + "/h"));
+    tg.append(tog("hyrail", e.type === "off" ? "Hyrail (pick a shift type first)" : "Hyrail", "$" + s.hyrail + "/h", e.type === "off"));
     tg.append(tog("oncall", "On-call", money(s.oncall)), tog("lafh", "Living away from home", money(s.lafh) + "/night"));
     wrap.append(h("div", { class: "field" }, h("span", { class: "flabel", text: "Extras" }), tg));
 
