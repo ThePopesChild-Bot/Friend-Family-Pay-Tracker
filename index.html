@@ -243,7 +243,7 @@ details.panel[open] > summary::after { content: "−"; }
       <li><b>Weeknight:</b> paid hours up to the first overtime point are base + night loading. Hours between the first and second points are the first multiplier x base + loading. Hours after the second point are the second multiplier x base + loading.</li>
       <li><b>Weekend:</b> any shift starting on a Saturday or Sunday is the weekend multiplier x base for every paid hour, however long the shift. Union shifts on a weekend are the union rate x the union night multiplier.</li>
       <li><b>Day shift:</b> base rate with no night loading, with the same overtime points and multipliers as nights.</li>
-      <li><b>Day worker on nights:</b> the first hours are the first multiplier x base and the rest are the second multiplier x base. No night loading and no overtime tiers.</li>
+      <li><b>Dayshift on Nights:</b> the first hours are the first multiplier x base and the rest are the second multiplier x base. No night loading and no overtime tiers.</li>
       <li><b>Union day:</b> the union rate up to the union day overtime point, then the union day multiplier. <b>Union night</b> is always the union night multiplier.</li>
       <li><b>Public holiday:</b> the public holiday multiplier x base + loading for every paid hour, plus any bonus hours at base.</li>
       <li><b>Union site:</b> the union rate x the union multiplier, plus the site allowance you enter on the day, for every paid hour.</li>
@@ -286,7 +286,7 @@ details.panel[open] > summary::after { content: "−"; }
     { k: "off", label: "Off" },
     { k: "night", label: "Night shift" },
     { k: "day", label: "Day shift" },
-    { k: "daynight", label: "Day worker on nights" },
+    { k: "daynight", label: "Dayshift on Nights" },
     { k: "weekend", label: "Weekend" },
     { k: "ph", label: "Public holiday" },
     { k: "uniond", label: "Union day" },
@@ -357,8 +357,8 @@ details.panel[open] > summary::after { content: "−"; }
     } else if (type === "daynight" && paid > 0) {
       const first = Math.min(paid, s.dnFirstHrs), rest = Math.max(0, paid - s.dnFirstHrs);
       const r1 = B * s.dnMult1, r2 = B * s.dnMult2;
-      if (first) lines.push({ k: "Day worker on nights " + s.dnMult1 + "x (first " + s.dnFirstHrs + "h)", h: first, r: r1, v: first * r1 });
-      if (rest) lines.push({ k: "Day worker on nights " + s.dnMult2 + "x", h: rest, r: r2, v: rest * r2 });
+      if (first) lines.push({ k: "Dayshift on Nights " + s.dnMult1 + "x (first " + s.dnFirstHrs + "h)", h: first, r: r1, v: first * r1 });
+      if (rest) lines.push({ k: "Dayshift on Nights " + s.dnMult2 + "x", h: rest, r: r2, v: rest * r2 });
     } else if (type === "weekend" && paid > 0) {
       const r = B * s.weekendMult + (s.weekendLoading ? L : 0);
       lines.push({ k: "Weekend " + s.weekendMult + "x", h: paid, r, v: paid * r });
@@ -711,7 +711,7 @@ details.panel[open] > summary::after { content: "−"; }
       ["unionRate", "Union hourly rate ($)"], ["unionMult", "Union night multiplier"], ["siteDefault", "Usual site allowance ($/h)"],
       ["unionDayOtStart", "Union day overtime starts after (on-site hours)"], ["unionDayOtMult", "Union day overtime multiplier"]
     ]],
-    ["Day workers on nights", [
+    ["Dayshift on Nights", [
       ["dnFirstHrs", "Hours at the first rate"], ["dnMult1", "First rate multiplier"], ["dnMult2", "Multiplier after that"]
     ]],
     ["Allowances", [
