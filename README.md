@@ -1,9 +1,15 @@
 # Shift Pay Log
 
-A small app for logging shifts and seeing what a week's pay comes to, with an estimated tax figure and a budget split.
+Click Here to INSTALL > https://thepopeschild-bot.github.io/Friend-Family-Pay-Tracker/
 
-Open it here: https://thepopeschild-bot.github.io/Friend-Family-Pay-Tracker/
+**How to SAVE it on your phone:** 
 
-**Put it on your phone:** open the link, then tap Share → Add to Home Screen (iPhone) or ⋮ → Add to Home screen (Android). After the first open it works without internet.
+**_HOW TO INSTALL ON IPHONE_** 
+  → open the link, then tap Share → Add to Home Screen
+
+**_HOW TO ADD TO ANDROID HOMESCREEN_**
+  → Press the 3 dots in the TOP RIGHT HAND CORNER then tap on INSTALL OR ADD TO HOME SCREEN. 
+  
+  After the first open it works without internet and everything is saved locally nothing is saved online and I do not save or see any of the data
 
 **Privacy:** everything you type is saved only on your own phone. There's no account, no sign-in and no server, and nobody else can see your figures. Use Backup and restore in the app to keep a copy.
