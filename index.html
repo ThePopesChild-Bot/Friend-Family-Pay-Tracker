@@ -18,7 +18,7 @@
 :root {
   --bg: #0e1317; --surface: #161d23; --surface-2: #1d262d; --line: #2a3640;
   --fg: #e8edf0; --muted: #8c9aa4; --accent: #ffb21f; --accent-ink: #1b1300;
-  --steel: #7fa6c4; --good: #52c48d; --warn: #ff8259; --night: #5fb6ff; --union: #3fe38f; --dayc: #9a63ff; --dnc: #ff7cc8;
+  --steel: #7fa6c4; --good: #52c48d; --warn: #ff8259; --night: #5fb6ff; --union: #3fe38f; --dayc: #ff5c5c; --dnc: #ff5c5c;
   --c1: #ffb21f; --c2: #7fa6c4; --c3: #52c48d; --c4: #e5739a; --c5: #a68cf0; --c6: #4fc7c7; --c7: #c9cdd1;
   --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -29,7 +29,7 @@
   :root:not([data-theme="dark"]) {
     --bg: #f2f4f5; --surface: #ffffff; --surface-2: #eef1f3; --line: #d6dde2;
     --fg: #11181d; --muted: #586670; --accent: #b26a00; --accent-ink: #ffffff;
-    --steel: #3e6d91; --good: #1c8853; --warn: #c2461d; --night: #1a78d0; --union: #0f9f55; --dayc: #5a24c2; --dnc: #c42e88;
+    --steel: #3e6d91; --good: #1c8853; --warn: #c2461d; --night: #1a78d0; --union: #0f9f55; --dayc: #c62828; --dnc: #c62828;
     --c1: #d18a00; --c2: #3e6d91; --c3: #1c8853; --c4: #c2476f; --c5: #6f55c9; --c6: #198f8f; --c7: #7b858c;
     color-scheme: light;
   }
@@ -37,7 +37,7 @@
 :root[data-theme="light"] {
   --bg: #f2f4f5; --surface: #ffffff; --surface-2: #eef1f3; --line: #d6dde2;
   --fg: #11181d; --muted: #586670; --accent: #b26a00; --accent-ink: #ffffff;
-  --steel: #3e6d91; --good: #1c8853; --warn: #c2461d; --night: #1a78d0; --union: #0f9f55; --dayc: #5a24c2; --dnc: #c42e88;
+  --steel: #3e6d91; --good: #1c8853; --warn: #c2461d; --night: #1a78d0; --union: #0f9f55; --dayc: #c62828; --dnc: #c62828;
   --c1: #d18a00; --c2: #3e6d91; --c3: #1c8853; --c4: #c2476f; --c5: #6f55c9; --c6: #198f8f; --c7: #7b858c;
   color-scheme: light;
 }
@@ -87,7 +87,7 @@ button { cursor: pointer; }
 .chip.t-night { color: var(--night); border-color: color-mix(in srgb, var(--night) 55%, transparent); background: color-mix(in srgb, var(--night) 10%, transparent); }
 .chip.t-weekend, .chip.t-ph { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .chip.t-day { color: var(--dayc); border-color: var(--dayc); background: color-mix(in srgb, var(--dayc) 14%, transparent); }
-.chip.t-daynight { color: var(--dnc); border-color: color-mix(in srgb, var(--dnc) 55%, transparent); background: color-mix(in srgb, var(--dnc) 10%, transparent); }
+.chip.t-daynight { color: var(--dnc); border-color: var(--dnc); background: color-mix(in srgb, var(--dnc) 14%, transparent); }
 .chip.t-union, .chip.t-uniond { color: var(--union); border-color: color-mix(in srgb, var(--union) 55%, transparent); background: color-mix(in srgb, var(--union) 10%, transparent); }
 .chip.add { color: var(--fg); background: var(--surface-2); border-color: transparent; }
 .dayhead .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 15px; text-align: right; }
