@@ -332,16 +332,18 @@ details.panel[open] > summary::after { content: "−"; }
     "2027-04-25": "Anzac Day", "2027-06-14": "King's Birthday", "2027-11-02": "Melbourne Cup Day",
     "2027-12-25": "Christmas Day", "2027-12-26": "Boxing Day", "2027-12-27": "Christmas Day (additional)", "2027-12-28": "Boxing Day (additional)"
   };
-  function defaultType(dateIso) { const wd = fromIso(dateIso).getDay(); if (wd === 0 || wd === 6) return "weekend"; return VIC_PH[dateIso] ? "ph" : "night"; }
+  function defaultType(dateIso) { const wd = fromIso(dateIso).getDay(); if ((wd === 0 || wd === 6) && !isXmas(dateIso)) return "weekend"; return VIC_PH[dateIso] ? "ph" : "night"; }
   function blankEntry(dateIso) { return { type: "off", hours: 0, site: settings.siteDefault, hyrail: false, oncall: false, lafh: false }; }
 
+  // Christmas Day keeps the public holiday rate even on a weekend.
+  function isXmas(dateIso) { return !!dateIso && dateIso.slice(5) === "12-25"; }
   function isWeekendDate(dateIso) { if (!dateIso) return false; const wd = fromIso(dateIso).getDay(); return wd === 0 || wd === 6; }
   function calcDay(e, s, dateIso) {
     const lines = [];
     // Saturday and Sunday are double time whatever the hours, for any non-union, non-holiday shift.
     const wkd = isWeekendDate(dateIso);
     let type = e.type;
-    if (wkd && (type === "night" || type === "day" || type === "daynight" || type === "ph")) type = "weekend";
+    if (wkd && (type === "night" || type === "day" || type === "daynight" || (type === "ph" && !isXmas(dateIso)))) type = "weekend";
     const B = s.base, L = B * s.loadingPct / 100;
     const onsite = Math.max(0, Number(e.hours) || 0);
     const working = e.type !== "off" && onsite > 0;
@@ -564,7 +566,7 @@ details.panel[open] > summary::after { content: "−"; }
       if (!e || (e.type === "off" && !e.oncall && !e.lafh)) info.append(h("span", { class: "chip", text: e ? "Off" : "Not logged" }));
       else {
         const wkChip = isWeekendDate(id);
-        const chipLabel = wkChip && (e.type === "union" || e.type === "uniond") ? "Union site" : wkChip && ["night", "day", "daynight", "ph"].includes(e.type) ? "Weekend" : TYPE_LABEL[e.type];
+        const chipLabel = wkChip && (e.type === "union" || e.type === "uniond") ? "Union site" : wkChip && ["night", "day", "daynight"].concat(isXmas(id) ? [] : ["ph"]).includes(e.type) ? "Weekend" : TYPE_LABEL[e.type];
         info.append(h("span", { class: "chip t-" + e.type, text: chipLabel + (e.type !== "off" && e.hours ? " · " + hrs(e.hours) + "h" : "") }));
         if ((e.type === "union" || e.type === "uniond") && e.site) info.append(h("span", { class: "chip add", text: "Site $" + Number(e.site).toFixed(2) }));
         if (e.hyrail && r.paid) info.append(h("span", { class: "chip add", text: "Hyrail" }));
@@ -601,9 +603,9 @@ details.panel[open] > summary::after { content: "−"; }
     const seg = h("div", { class: "seg", role: "group", "aria-label": "Shift type" });
     const wkDay = isWeekendDate(id);
     // Weekdays never need the weekend rate; Saturdays and Sundays only need weekend or union.
-    const allowed = wkDay ? ["off", "weekend", "union"] : ["off", "night", "day", "daynight", "ph", "uniond", "union"];
+    const allowed = wkDay ? (isXmas(id) ? ["off", "weekend", "ph", "union"] : ["off", "weekend", "union"]) : ["off", "night", "day", "daynight", "ph", "uniond", "union"];
     for (const t of TYPES.filter(t => allowed.includes(t.k))) {
-      const pressed = e.type === t.k || (wkDay && t.k === "union" && e.type === "uniond") || (wkDay && t.k === "weekend" && ["night", "day", "daynight", "ph"].includes(e.type));
+      const pressed = e.type === t.k || (wkDay && t.k === "union" && e.type === "uniond") || (wkDay && t.k === "weekend" && ["night", "day", "daynight"].concat(isXmas(id) ? [] : ["ph"]).includes(e.type));
       seg.append(h("button", { "aria-pressed": pressed ? "true" : "false", onclick: () => {
         const patch = { type: t.k };
         if (t.k !== "off" && !(Number(e.hours) > 0)) patch.hours = 8.5;
