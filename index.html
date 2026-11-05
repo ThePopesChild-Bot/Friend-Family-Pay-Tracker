@@ -86,7 +86,9 @@ button { cursor: pointer; }
 .chip { font-size: 12px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
 .chip.t-night { color: var(--night); border-color: color-mix(in srgb, var(--night) 55%, transparent); background: color-mix(in srgb, var(--night) 10%, transparent); }
 .chip.t-weekend, .chip.t-ph { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
-.chip.t-union { color: var(--union); border-color: color-mix(in srgb, var(--union) 55%, transparent); background: color-mix(in srgb, var(--union) 10%, transparent); }
+.chip.t-day { color: var(--steel); border-color: color-mix(in srgb, var(--steel) 55%, transparent); background: color-mix(in srgb, var(--steel) 10%, transparent); }
+.chip.t-daynight { color: var(--night); border-color: color-mix(in srgb, var(--night) 55%, transparent); background: color-mix(in srgb, var(--night) 18%, transparent); }
+.chip.t-union, .chip.t-uniond { color: var(--union); border-color: color-mix(in srgb, var(--union) 55%, transparent); background: color-mix(in srgb, var(--union) 10%, transparent); }
 .chip.add { color: var(--fg); background: var(--surface-2); border-color: transparent; }
 .dayhead .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 15px; text-align: right; }
 .dayhead .amt.zero { color: var(--muted); }
@@ -239,7 +241,10 @@ details.panel[open] > summary::after { content: "−"; }
     <ul class="assume" style="padding-top:14px">
       <li><b>Hours you enter are on-site hours</b>, including your unpaid break. The app takes the break off before working out pay.</li>
       <li><b>Weeknight:</b> paid hours up to the first overtime point are base + night loading. Hours between the first and second points are the first multiplier x base + loading. Hours after the second point are the second multiplier x base + loading.</li>
-      <li><b>Weekend:</b> the weekend multiplier x base for every paid hour. Turn on "Add night loading on weekends" if your award adds it.</li>
+      <li><b>Weekend:</b> any shift starting on a Saturday or Sunday is the weekend multiplier x base for every paid hour, however long the shift. Union shifts on a weekend are the union rate x the union night multiplier.</li>
+      <li><b>Day shift:</b> base rate with no night loading, with the same overtime points and multipliers as nights.</li>
+      <li><b>Day worker on nights:</b> the first hours are the first multiplier x base and the rest are the second multiplier x base. No night loading and no overtime tiers.</li>
+      <li><b>Union day:</b> the union rate up to the union day overtime point, then the union day multiplier. <b>Union night</b> is always the union night multiplier.</li>
       <li><b>Public holiday:</b> the public holiday multiplier x base + loading for every paid hour, plus any bonus hours at base.</li>
       <li><b>Union site:</b> the union rate x the union multiplier, plus the site allowance you enter on the day, for every paid hour.</li>
       <li><b>Hyrail</b> is paid per paid hour. <b>On-call</b> is paid per day. <b>Living away from home</b> is paid per night. Set these to 0 if you don't get them.</li>
@@ -262,6 +267,8 @@ details.panel[open] > summary::after { content: "−"; }
     weekendMult: 2, weekendLoading: false,
     phMult: 2, phBonusHrs: 8,
     unionRate: 56.5, unionMult: 2, siteDefault: 7.5,
+    unionDayOtStart: 8.5, unionDayOtMult: 2,
+    dnFirstHrs: 2, dnMult1: 1.5, dnMult2: 2,
     hyrail: 5, oncall: 100, lafh: 150,
     minHours: 40, topUp: true,
     taxOn: true, taxFree: true, medicare: true, extraTax: 0
@@ -277,10 +284,13 @@ details.panel[open] > summary::after { content: "−"; }
   const BUDGET_COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)", "var(--c6)"];
   const TYPES = [
     { k: "off", label: "Off" },
-    { k: "night", label: "Weeknight" },
+    { k: "night", label: "Night shift" },
+    { k: "day", label: "Day shift" },
+    { k: "daynight", label: "Day worker on nights" },
     { k: "weekend", label: "Weekend" },
     { k: "ph", label: "Public holiday" },
-    { k: "union", label: "Union site" }
+    { k: "uniond", label: "Union day" },
+    { k: "union", label: "Union night" }
   ];
   const TYPE_LABEL = Object.fromEntries(TYPES.map(t => [t.k, t.label]));
 
@@ -325,30 +335,49 @@ details.panel[open] > summary::after { content: "−"; }
   function defaultType(dateIso) { if (VIC_PH[dateIso]) return "ph"; const wd = fromIso(dateIso).getDay(); return (wd === 0 || wd === 6) ? "weekend" : "night"; }
   function blankEntry(dateIso) { return { type: "off", hours: 0, site: settings.siteDefault, hyrail: false, oncall: false, lafh: false }; }
 
-  function calcDay(e, s) {
+  function isWeekendDate(dateIso) { if (!dateIso) return false; const wd = fromIso(dateIso).getDay(); return wd === 0 || wd === 6; }
+  function calcDay(e, s, dateIso) {
     const lines = [];
+    // Saturday and Sunday are double time whatever the hours, for any non-union, non-holiday shift.
+    const wkd = isWeekendDate(dateIso);
+    let type = e.type;
+    if (wkd && (type === "night" || type === "day" || type === "daynight")) type = "weekend";
     const B = s.base, L = B * s.loadingPct / 100;
     const onsite = Math.max(0, Number(e.hours) || 0);
     const working = e.type !== "off" && onsite > 0;
     const paid = working ? Math.max(0, onsite - s.breakHrs) : 0;
-    if (e.type === "night" && paid > 0) {
+    if ((type === "night" || type === "day") && paid > 0) {
+      const LL = type === "night" ? L : 0, tag = type === "night" ? " + loading" : "";
       const p1 = Math.max(0, s.t1Start - s.breakHrs), p2 = Math.max(p1, s.t2Start - s.breakHrs);
       const ord = Math.min(paid, p1), ot1 = Math.max(0, Math.min(paid, p2) - p1), ot2 = Math.max(0, paid - p2);
-      const r0 = B + L, r1 = B * s.t1Mult + L, r2 = B * s.t2Mult + L;
-      if (ord) lines.push({ k: "Ordinary night (up to " + s.t1Start + "h on site)", h: ord, r: r0, v: ord * r0 });
-      if (ot1) lines.push({ k: s.t1Mult + "x (" + s.t1Start + "–" + s.t2Start + "h on site)", h: ot1, r: r1, v: ot1 * r1 });
-      if (ot2) lines.push({ k: s.t2Mult + "x (after " + s.t2Start + "h on site)", h: ot2, r: r2, v: ot2 * r2 });
-    } else if (e.type === "weekend" && paid > 0) {
+      const r0 = B + LL, r1 = B * s.t1Mult + LL, r2 = B * s.t2Mult + LL;
+      if (ord) lines.push({ k: (type === "night" ? "Ordinary night" : "Ordinary day") + " (up to " + s.t1Start + "h on site)", h: ord, r: r0, v: ord * r0 });
+      if (ot1) lines.push({ k: s.t1Mult + "x" + tag + " (" + s.t1Start + "–" + s.t2Start + "h on site)", h: ot1, r: r1, v: ot1 * r1 });
+      if (ot2) lines.push({ k: s.t2Mult + "x" + tag + " (after " + s.t2Start + "h on site)", h: ot2, r: r2, v: ot2 * r2 });
+    } else if (type === "daynight" && paid > 0) {
+      const first = Math.min(paid, s.dnFirstHrs), rest = Math.max(0, paid - s.dnFirstHrs);
+      const r1 = B * s.dnMult1, r2 = B * s.dnMult2;
+      if (first) lines.push({ k: "Day worker on nights " + s.dnMult1 + "x (first " + s.dnFirstHrs + "h)", h: first, r: r1, v: first * r1 });
+      if (rest) lines.push({ k: "Day worker on nights " + s.dnMult2 + "x", h: rest, r: r2, v: rest * r2 });
+    } else if (type === "weekend" && paid > 0) {
       const r = B * s.weekendMult + (s.weekendLoading ? L : 0);
       lines.push({ k: "Weekend " + s.weekendMult + "x", h: paid, r, v: paid * r });
-    } else if (e.type === "ph") {
+    } else if (type === "ph") {
       const r = B * s.phMult + L;
       if (paid) lines.push({ k: "Public holiday " + s.phMult + "x + loading", h: paid, r, v: paid * r });
       if (s.phBonusHrs) lines.push({ k: "Public holiday bonus", h: s.phBonusHrs, r: B, v: s.phBonusHrs * B });
-    } else if (e.type === "union" && paid > 0) {
-      const r = s.unionRate * s.unionMult;
+    } else if ((type === "union" || type === "uniond") && paid > 0) {
       const site = Number(e.site) || 0;
-      lines.push({ k: "Union rate " + s.unionMult + "x", h: paid, r, v: paid * r });
+      if (type === "union" || wkd) {
+        const r = s.unionRate * s.unionMult;
+        lines.push({ k: (type === "union" ? "Union night " : "Union day, weekend ") + s.unionMult + "x", h: paid, r, v: paid * r });
+      } else {
+        const p1 = Math.max(0, s.unionDayOtStart - s.breakHrs);
+        const ord = Math.min(paid, p1), ot = Math.max(0, paid - p1);
+        const r0 = s.unionRate, r1 = s.unionRate * s.unionDayOtMult;
+        if (ord) lines.push({ k: "Union day (up to " + s.unionDayOtStart + "h on site)", h: ord, r: r0, v: ord * r0 });
+        if (ot) lines.push({ k: "Union day " + s.unionDayOtMult + "x (after " + s.unionDayOtStart + "h on site)", h: ot, r: r1, v: ot * r1 });
+      }
       if (site) lines.push({ k: "Site allowance", h: paid, r: site, v: paid * site });
     }
     if (e.hyrail && paid > 0) lines.push({ k: "Hyrail", h: paid, r: s.hyrail, v: paid * s.hyrail });
@@ -391,7 +420,7 @@ details.panel[open] > summary::after { content: "−"; }
     for (let i = 0; i < 7; i++) {
       const id = iso(addDays(startDate, i));
       const e = days[id];
-      const r = e ? calcDay(e, settings) : { lines: [], paid: 0, total: 0 };
+      const r = e ? calcDay(e, settings, id) : { lines: [], paid: 0, total: 0 };
       out.days.push({ id, e, r });
       out.gross += r.total; out.paid += r.paid;
       if (e && e.type !== "off") out.logged = true;
@@ -535,7 +564,7 @@ details.panel[open] > summary::after { content: "−"; }
       if (!e || (e.type === "off" && !e.oncall && !e.lafh)) info.append(h("span", { class: "chip", text: e ? "Off" : "Not logged" }));
       else {
         info.append(h("span", { class: "chip t-" + e.type, text: TYPE_LABEL[e.type] + (e.type !== "off" && e.hours ? " · " + hrs(e.hours) + "h" : "") }));
-        if (e.type === "union" && e.site) info.append(h("span", { class: "chip add", text: "Site $" + Number(e.site).toFixed(2) }));
+        if ((e.type === "union" || e.type === "uniond") && e.site) info.append(h("span", { class: "chip add", text: "Site $" + Number(e.site).toFixed(2) }));
         if (e.hyrail && r.paid) info.append(h("span", { class: "chip add", text: "Hyrail" }));
         if (e.oncall) info.append(h("span", { class: "chip add", text: "On-call" }));
         if (e.lafh) info.append(h("span", { class: "chip add", text: "Away" }));
@@ -590,7 +619,7 @@ details.panel[open] > summary::after { content: "−"; }
       ));
     }
 
-    if (e.type === "union") {
+    if (e.type === "union" || e.type === "uniond") {
       const si = h("input", { id: "site-" + id, type: "number", inputmode: "decimal", step: "0.05", min: "0", value: Number(e.site ?? s.siteDefault).toFixed(2) });
       si.addEventListener("change", () => update(id, { site: Math.max(0, Number(si.value) || 0) }));
       wrap.append(h("div", { class: "field" },
@@ -679,7 +708,11 @@ details.panel[open] > summary::after { content: "−"; }
       ["phMult", "Public holiday multiplier (plus loading)"], ["phBonusHrs", "Public holiday bonus (hours at base)"]
     ]],
     ["Union sites", [
-      ["unionRate", "Union hourly rate ($)"], ["unionMult", "Union multiplier"], ["siteDefault", "Usual site allowance ($/h)"]
+      ["unionRate", "Union hourly rate ($)"], ["unionMult", "Union night multiplier"], ["siteDefault", "Usual site allowance ($/h)"],
+      ["unionDayOtStart", "Union day overtime starts after (on-site hours)"], ["unionDayOtMult", "Union day overtime multiplier"]
+    ]],
+    ["Day workers on nights", [
+      ["dnFirstHrs", "Hours at the first rate"], ["dnMult1", "First rate multiplier"], ["dnMult2", "Multiplier after that"]
     ]],
     ["Allowances", [
       ["hyrail", "Hyrail ($ per hour)"], ["oncall", "On-call ($ per day)"], ["lafh", "Living away from home ($ per night)"]
