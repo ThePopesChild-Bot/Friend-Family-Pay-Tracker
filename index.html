@@ -85,7 +85,7 @@ button { cursor: pointer; }
 .dayhead .info { min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
 .chip { font-size: 12px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
 .chip.t-night { color: var(--night); border-color: color-mix(in srgb, var(--night) 55%, transparent); background: color-mix(in srgb, var(--night) 10%, transparent); }
-.chip.t-weekend, .chip.t-ph { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.chip.t-weekend, .chip.t-ph, .chip.t-phoff { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .chip.t-day { color: var(--dayc); border-color: var(--dayc); background: color-mix(in srgb, var(--dayc) 14%, transparent); }
 .chip.t-daynight { color: var(--dnc); border-color: var(--dnc); background: color-mix(in srgb, var(--dnc) 14%, transparent); }
 .chip.t-union, .chip.t-uniond, .chip.t-unionph { color: var(--union); border-color: color-mix(in srgb, var(--union) 55%, transparent); background: color-mix(in srgb, var(--union) 10%, transparent); }
@@ -253,7 +253,8 @@ details.panel[open] > summary::after { content: "−"; }
       <li><b>Union day:</b> paid at the union rate up to the union day overtime point, then at the union day multiplier. <b>Union night</b> is always paid at the union night multiplier.</li>
       <li><b>Union site:</b> the union rate × the union multiplier, plus the site allowance you enter for that day, for every paid hour.</li>
       <li><b>Public holiday:</b> the public holiday multiplier × base + loading for every paid hour, plus any bonus hours at base.</li>
-      <li><b>Union public holiday:</b> the union rate × the union public holiday multiplier, plus the site allowance, for every paid hour, plus the public holiday bonus hours at base. On a public holiday, the only choices are Public holiday and Union public holiday.</li>
+      <li><b>Public holiday off:</b> a public holiday you don't work is paid at base + night loading for the paid hours, with no bonus hours.</li>
+      <li><b>Union public holiday:</b> the union rate × the union public holiday multiplier, plus the site allowance, for every paid hour, plus the public holiday bonus hours at base. On a public holiday, the choices are Off, Public holiday off, Public holiday and Union public holiday.</li>
       <li><b>Hyrail</b> is paid for each paid hour, <b>on-call</b> is paid per day, and <b>living away from home</b> is paid per night. Set any of these to 0 if you don't get them.</li>
       <li><b>Minimum hours:</b> if you set guaranteed weekly hours and turn on the top-up, any shortfall in a week is topped up at base + loading.</li>
       <li><b>Tax</b> is an estimate of PAYG withholding at 2026–27 Australian resident rates, plus the 2% Medicare levy, treating each week as 1/52 of a year. Your payslip may differ slightly.</li>
@@ -298,6 +299,7 @@ details.panel[open] > summary::after { content: "−"; }
     { k: "daynight", label: "Dayshift on Nights" },
     { k: "weekend", label: "Weekend" },
     { k: "ph", label: "Public holiday" },
+    { k: "phoff", label: "Public holiday off" },
     { k: "unionph", label: "Union public holiday" },
     { k: "uniond", label: "Union day" },
     { k: "union", label: "Union night" }
@@ -384,6 +386,10 @@ details.panel[open] > summary::after { content: "−"; }
       const r = B * s.phMult + L;
       if (paid) lines.push({ k: "Public holiday " + s.phMult + "x + loading", h: paid, r, v: paid * r });
       if (s.phBonusHrs) lines.push({ k: "Public holiday bonus", h: s.phBonusHrs, r: B, v: s.phBonusHrs * B });
+    } else if (type === "phoff" && paid > 0) {
+      // A public holiday you don't work: paid hours at base + night loading, no bonus.
+      const r = B + L;
+      lines.push({ k: "Public holiday off (base + loading)", h: paid, r, v: paid * r });
     } else if (type === "unionph") {
       const site = Number(e.site) || 0, r = s.unionRate * s.unionPhMult;
       if (paid) lines.push({ k: "Union public holiday " + s.unionPhMult + "x", h: paid, r, v: paid * r });
@@ -611,7 +617,7 @@ details.panel[open] > summary::after { content: "−"; }
     // Weekdays never need the weekend rate; Saturdays and Sundays only need weekend or union.
     const phDay = isPHDay(id);
     // Shift types laid out in three columns: off/nights, day work, union.
-    const columns = phDay ? [["off"], ["ph"], ["unionph"]] : wkDay ? [["off"], ["weekend"], ["union"]] : [["off", "night"], ["day", "daynight"], ["uniond", "union"]];
+    const columns = phDay ? [["off", "phoff"], ["ph"], ["unionph"]] : wkDay ? [["off"], ["weekend"], ["union"]] : [["off", "night"], ["day", "daynight"], ["uniond", "union"]];
     const colEls = columns.map(() => h("div", { class: "col" }));
     colEls.forEach(c => seg.append(c));
     for (const t of TYPES.filter(t => columns.some(c => c.includes(t.k)))) {
