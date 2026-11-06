@@ -88,7 +88,7 @@ button { cursor: pointer; }
 .chip.t-weekend, .chip.t-ph { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .chip.t-day { color: var(--dayc); border-color: var(--dayc); background: color-mix(in srgb, var(--dayc) 14%, transparent); }
 .chip.t-daynight { color: var(--dnc); border-color: var(--dnc); background: color-mix(in srgb, var(--dnc) 14%, transparent); }
-.chip.t-union, .chip.t-uniond { color: var(--union); border-color: color-mix(in srgb, var(--union) 55%, transparent); background: color-mix(in srgb, var(--union) 10%, transparent); }
+.chip.t-union, .chip.t-uniond, .chip.t-unionph { color: var(--union); border-color: color-mix(in srgb, var(--union) 55%, transparent); background: color-mix(in srgb, var(--union) 10%, transparent); }
 .chip.add { color: var(--fg); background: var(--surface-2); border-color: transparent; }
 .dayhead .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 15px; text-align: right; }
 .dayhead .amt.zero { color: var(--muted); }
@@ -98,8 +98,9 @@ button { cursor: pointer; }
 .day.open { background: var(--surface-2); }
 
 .editor { padding: 4px 14px 16px; display: flex; flex-direction: column; gap: 14px; }
-.seg { display: flex; flex-wrap: wrap; gap: 6px; }
-.seg button { border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 8px 11px; font-size: 14px; }
+.seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.seg .col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.seg button { border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 9px 6px; font-size: 14px; line-height: 1.2; width: 100%; text-align: center; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > label, .field > .flabel { font-size: 13px; color: var(--muted); }
@@ -153,7 +154,12 @@ details.panel[open] > summary::after { content: "−"; }
 .srow input[type="number"], .srow select, .brow-edit input, .brow-edit select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-family: var(--mono); font-size: 14px; }
 .srow input[type="checkbox"] { justify-self: end; width: 20px; height: 20px; accent-color: var(--accent); }
 .brow-edit { display: grid; grid-template-columns: 1fr 80px 62px; gap: 8px; align-items: center; font-size: 14px; }
-.brow-edit span { min-width: 0; }
+.brow-edit .bname { min-width: 0; display: flex; align-items: center; gap: 4px; }
+.brow-edit .bname > span { min-width: 0; overflow-wrap: anywhere; }
+.brow-edit .bname input[type="text"] { flex: 1; min-width: 0; text-align: left; font-family: var(--body); padding: 6px 7px; border: 1px solid var(--accent); border-radius: 8px; background: var(--bg); color: var(--fg); font-size: 14px; }
+.iconbtn { flex: none; border: 1px solid var(--line); background: var(--surface-2); border-radius: 7px; padding: 3px 8px; font-size: 12px; color: var(--fg); }
+.iconbtn.danger { color: var(--warn); }
+.iconbtn.armed { background: var(--warn); color: var(--bg); border-color: var(--warn); font-weight: 600; }
 .brow-edit input, .brow-edit select { text-align: center; text-align-last: center; }
 .brow-group { display: flex; flex-direction: column; gap: 6px; padding-block: 6px; border-top: 1px solid var(--line); }
 .brow-group input[type="text"] { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; }
@@ -197,7 +203,7 @@ details.panel[open] > summary::after { content: "−"; }
     <h2>Log your shifts</h2>
     <div class="days" id="days"></div>
     <button class="resetbtn" id="fillWeek">Fill Mon–Fri with standard 8.5h nights</button>
-    <p class="hint">Log a night shift on the day it starts. Tap a day to change it. Changes save as you go.</p>
+    <p class="hint">Log a night shift on the day it starts. Tap a day to change it. Changes save automatically.</p>
   </section>
 
   <section>
@@ -222,7 +228,7 @@ details.panel[open] > summary::after { content: "−"; }
   <details class="panel" id="backupBox">
     <summary>Backup and restore</summary>
     <div class="sgroup">
-      <span class="hint">Your log is saved only on this device. Copy a backup and keep it in your notes or email it to yourself. To move to a new phone, paste it in below.</span>
+      <span class="hint">Your log is saved only on this device. Copy a backup and keep it in your notes or email it to yourself. To move to a new phone, paste your backup into the box below on that phone.</span>
       <button class="resetbtn" id="copyBackup">Copy backup</button>
       <label class="hint" for="backupText">Backup text</label>
       <textarea id="backupText" rows="4" style="width:100%;font-family:var(--mono);font-size:12px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)" placeholder="Paste a backup here to restore it"></textarea>
@@ -239,19 +245,20 @@ details.panel[open] > summary::after { content: "−"; }
   <details class="panel">
     <summary>How the maths works</summary>
     <ul class="assume" style="padding-top:14px">
-      <li><b>Hours you enter are on-site hours</b>, including your unpaid break. The app takes the break off before working out pay.</li>
-      <li><b>Weeknight:</b> paid hours up to the first overtime point are base + night loading. Hours between the first and second points are the first multiplier x base + loading. Hours after the second point are the second multiplier x base + loading.</li>
-      <li><b>Weekend:</b> any shift starting on a Saturday or Sunday is the weekend multiplier x base for every paid hour, however long the shift. Union shifts on a weekend are the union rate x the union night multiplier.</li>
-      <li><b>Day shift:</b> base rate with no night loading, with the same overtime points and multipliers as nights.</li>
-      <li><b>Dayshift on Nights:</b> the first hours are the first multiplier x base and the rest are the second multiplier x base. No night loading and no overtime tiers.</li>
-      <li><b>Union day:</b> the union rate up to the union day overtime point, then the union day multiplier. <b>Union night</b> is always the union night multiplier.</li>
-      <li><b>Public holiday:</b> the public holiday multiplier x base + loading for every paid hour, plus any bonus hours at base.</li>
-      <li><b>Union site:</b> the union rate x the union multiplier, plus the site allowance you enter on the day, for every paid hour.</li>
-      <li><b>Hyrail</b> is paid per paid hour. <b>On-call</b> is paid per day. <b>Living away from home</b> is paid per night. Set these to 0 if you don't get them.</li>
-      <li><b>Minimum hours:</b> if you set guaranteed weekly hours and turn on the top-up, a short week is topped up at base + loading.</li>
-      <li><b>Tax</b> is an estimate of PAYG withholding at 2026-27 Australian resident rates plus the 2% Medicare levy, treating the week as 1/52 of a year. Your payslip may differ slightly.</li>
-      <li><b>Victorian public holidays</b> for 2026 and 2027 are marked. Melbourne Cup Day is metro Melbourne only.</li>
-      <li><b>Your privacy:</b> nothing you enter leaves this device. There is no account and no server, and nobody else can see your figures. Clearing your browser data deletes your log, so copy a backup now and then.</li>
+      <li><b>Hours you enter are on-site hours,</b> including your unpaid break. The app takes the break off before working out your pay.</li>
+      <li><b>Weeknight:</b> paid hours up to the first overtime point are paid at base + night loading. Hours between the first and second points are paid at the first multiplier × base + loading. Hours after the second point are paid at the second multiplier × base + loading.</li>
+      <li><b>Weekend:</b> any shift that starts on a Saturday or Sunday is paid at the weekend multiplier × base for every paid hour, however long the shift is. Union shifts on a weekend are paid at the union rate × the union night multiplier.</li>
+      <li><b>Day shift:</b> paid at the base rate with no night loading, using the same overtime points and multipliers as nights.</li>
+      <li><b>Dayshift on Nights:</b> the first set number of hours are paid at the first multiplier × base, and the rest at the second multiplier × base. There is no night loading and there are no overtime tiers.</li>
+      <li><b>Union day:</b> paid at the union rate up to the union day overtime point, then at the union day multiplier. <b>Union night</b> is always paid at the union night multiplier.</li>
+      <li><b>Union site:</b> the union rate × the union multiplier, plus the site allowance you enter for that day, for every paid hour.</li>
+      <li><b>Public holiday:</b> the public holiday multiplier × base + loading for every paid hour, plus any bonus hours at base.</li>
+      <li><b>Union public holiday:</b> the union rate × the union public holiday multiplier, plus the site allowance, for every paid hour, plus the public holiday bonus hours at base. On a public holiday, the only choices are Public holiday and Union public holiday.</li>
+      <li><b>Hyrail</b> is paid for each paid hour, <b>on-call</b> is paid per day, and <b>living away from home</b> is paid per night. Set any of these to 0 if you don't get them.</li>
+      <li><b>Minimum hours:</b> if you set guaranteed weekly hours and turn on the top-up, any shortfall in a week is topped up at base + loading.</li>
+      <li><b>Tax</b> is an estimate of PAYG withholding at 2026–27 Australian resident rates, plus the 2% Medicare levy, treating each week as 1/52 of a year. Your payslip may differ slightly.</li>
+      <li><b>Victorian public holidays</b> for 2026 and 2027 are marked. Melbourne Cup Day applies to metro Melbourne only.</li>
+      <li><b>Your privacy:</b> nothing you enter leaves this device. There is no account and no server, so nobody else can see your figures. Clearing your browser data deletes your log, so copy a backup every now and then.</li>
     </ul>
   </details>
 </div>
@@ -265,7 +272,7 @@ details.panel[open] > summary::after { content: "−"; }
     base: 0, loadingPct: 30, breakHrs: 0.5,
     t1Start: 8.5, t1Mult: 1.5, t2Start: 10.5, t2Mult: 2,
     weekendMult: 2, weekendLoading: false,
-    phMult: 2, phBonusHrs: 8,
+    phMult: 2, phBonusHrs: 8, unionPhMult: 2,
     unionRate: 56.5, unionMult: 2, siteDefault: 7.5,
     unionDayOtStart: 8.5, unionDayOtMult: 2,
     dnFirstHrs: 2, dnMult1: 1.5, dnMult2: 2,
@@ -274,13 +281,15 @@ details.panel[open] > summary::after { content: "−"; }
     taxOn: true, taxFree: true, medicare: true, extraTax: 0
   };
   const DEFAULT_BUDGET = [
-    { key: "rent", name: "Rent", mode: "pct", value: 0 },
+    { key: "rent", name: "Mortgage/Rent", mode: "pct", value: 0 },
     { key: "bills", name: "Bills", mode: "pct", value: 0 },
     { key: "food", name: "Food", mode: "pct", value: 0 },
     { key: "loans", name: "Loan repayments", mode: "pct", value: 0 },
     { key: "saving", name: "Saving", mode: "pct", value: 0 },
     { key: "investing", name: "Investing", mode: "pct", value: 0 }
   ];
+  const MAX_BUDGET = 12;
+  let deleteArmed = null;
   const BUDGET_COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)", "var(--c6)"];
   const TYPES = [
     { k: "off", label: "Off" },
@@ -289,6 +298,7 @@ details.panel[open] > summary::after { content: "−"; }
     { k: "daynight", label: "Dayshift on Nights" },
     { k: "weekend", label: "Weekend" },
     { k: "ph", label: "Public holiday" },
+    { k: "unionph", label: "Union public holiday" },
     { k: "uniond", label: "Union day" },
     { k: "union", label: "Union night" }
   ];
@@ -301,7 +311,6 @@ details.panel[open] > summary::after { content: "−"; }
   let isExample = false;
   let openDay = null;
   let weekStart = mondayOf(new Date());
-  let db = null, mode = "loading", ROOT = "";
 
   // ---------- dates ----------
   function pad(n) { return String(n).padStart(2, "0"); }
@@ -337,6 +346,7 @@ details.panel[open] > summary::after { content: "−"; }
 
   // Christmas Day keeps the public holiday rate even on a weekend.
   function isXmas(dateIso) { return !!dateIso && dateIso.slice(5) === "12-25"; }
+  function isPHDay(dateIso) { return !!dateIso && !!VIC_PH[dateIso] && (!isWeekendDate(dateIso) || isXmas(dateIso)); }
   function isWeekendDate(dateIso) { if (!dateIso) return false; const wd = fromIso(dateIso).getDay(); return wd === 0 || wd === 6; }
   function calcDay(e, s, dateIso) {
     const lines = [];
@@ -344,6 +354,12 @@ details.panel[open] > summary::after { content: "−"; }
     const wkd = isWeekendDate(dateIso);
     let type = e.type;
     if (wkd && (type === "night" || type === "day" || type === "daynight" || (type === "ph" && !isXmas(dateIso)))) type = "weekend";
+    if (wkd && !isXmas(dateIso) && type === "unionph") type = "union";
+    // On a public holiday every shift is paid as a public holiday.
+    if (isPHDay(dateIso)) {
+      if (type === "night" || type === "day" || type === "daynight" || type === "weekend") type = "ph";
+      if (type === "union" || type === "uniond") type = "unionph";
+    }
     const B = s.base, L = B * s.loadingPct / 100;
     const onsite = Math.max(0, Number(e.hours) || 0);
     const working = e.type !== "off" && onsite > 0;
@@ -367,6 +383,11 @@ details.panel[open] > summary::after { content: "−"; }
     } else if (type === "ph") {
       const r = B * s.phMult + L;
       if (paid) lines.push({ k: "Public holiday " + s.phMult + "x + loading", h: paid, r, v: paid * r });
+      if (s.phBonusHrs) lines.push({ k: "Public holiday bonus", h: s.phBonusHrs, r: B, v: s.phBonusHrs * B });
+    } else if (type === "unionph") {
+      const site = Number(e.site) || 0, r = s.unionRate * s.unionPhMult;
+      if (paid) lines.push({ k: "Union public holiday " + s.unionPhMult + "x", h: paid, r, v: paid * r });
+      if (paid && site) lines.push({ k: "Site allowance", h: paid, r: site, v: paid * site });
       if (s.phBonusHrs) lines.push({ k: "Public holiday bonus", h: s.phBonusHrs, r: B, v: s.phBonusHrs * B });
     } else if ((type === "union" || type === "uniond") && paid > 0) {
       const site = Number(e.site) || 0;
@@ -479,30 +500,14 @@ details.panel[open] > summary::after { content: "−"; }
   const timers = {}, pending = new Set();
   function persistDay(id) {
     clearTimeout(timers[id]);
-    if (mode !== "db") lsSave();
+    lsSave();
     pending.add(id);
-    timers[id] = setTimeout(async () => {
-      pending.delete(id);
-      const e = days[id];
-      if (mode === "db") {
-        try {
-          const ref = db.doc(ROOT + "/log/days/" + id);
-          if (!e || (e.type === "off" && !e.oncall && !e.lafh && !e.hyrail)) await ref.delete();
-          else await ref.set({ ...e, date: id });
-          flashSaved(id);
-        } catch (err) { showNotice("Couldn't save " + id + ": " + (err && err.message || "try again") + ".", false); }
-      } else { lsSave(); flashSaved(id); }
-    }, 350);
+    timers[id] = setTimeout(() => { pending.delete(id); lsSave(); flashSaved(id); }, 350);
   }
   function persistSettings() {
     clearTimeout(timers._s);
-    if (mode !== "db") lsSave();
-    timers._s = setTimeout(async () => {
-      if (mode === "db") {
-        try { await db.doc(ROOT + "/settings").set({ settings, budget }); }
-        catch (err) { showNotice("Couldn't save settings: " + (err && err.message || "try again") + ".", false); }
-      } else lsSave();
-    }, 400);
+    lsSave();
+    timers._s = setTimeout(lsSave, 400);
   }
   function flashSaved(id) {
     const el = document.querySelector('[data-saved="' + id + '"]');
@@ -566,9 +571,10 @@ details.panel[open] > summary::after { content: "−"; }
       if (!e || (e.type === "off" && !e.oncall && !e.lafh)) info.append(h("span", { class: "chip", text: e ? "Off" : "Not logged" }));
       else {
         const wkChip = isWeekendDate(id);
-        const chipLabel = wkChip && (e.type === "union" || e.type === "uniond") ? "Union site" : wkChip && ["night", "day", "daynight"].concat(isXmas(id) ? [] : ["ph"]).includes(e.type) ? "Weekend" : TYPE_LABEL[e.type];
+        const phChip = isPHDay(id);
+        const chipLabel = phChip && ["union", "uniond", "unionph"].includes(e.type) ? "Union public holiday" : phChip && ["night", "day", "daynight", "weekend", "ph"].includes(e.type) ? "Public holiday" : wkChip && e.type === "unionph" ? "Union site" : wkChip && (e.type === "union" || e.type === "uniond") ? "Union site" : wkChip && ["night", "day", "daynight"].concat(isXmas(id) ? [] : ["ph"]).includes(e.type) ? "Weekend" : TYPE_LABEL[e.type];
         info.append(h("span", { class: "chip t-" + e.type, text: chipLabel + (e.type !== "off" && e.hours ? " · " + hrs(e.hours) + "h" : "") }));
-        if ((e.type === "union" || e.type === "uniond") && e.site) info.append(h("span", { class: "chip add", text: "Site $" + Number(e.site).toFixed(2) }));
+        if ((e.type === "union" || e.type === "uniond" || e.type === "unionph") && e.site) info.append(h("span", { class: "chip add", text: "Site $" + Number(e.site).toFixed(2) }));
         if (e.hyrail && r.paid) info.append(h("span", { class: "chip add", text: "Hyrail" }));
         if (e.oncall) info.append(h("span", { class: "chip add", text: "On-call" }));
         if (e.lafh) info.append(h("span", { class: "chip add", text: "Away" }));
@@ -603,10 +609,15 @@ details.panel[open] > summary::after { content: "−"; }
     const seg = h("div", { class: "seg", role: "group", "aria-label": "Shift type" });
     const wkDay = isWeekendDate(id);
     // Weekdays never need the weekend rate; Saturdays and Sundays only need weekend or union.
-    const allowed = wkDay ? (isXmas(id) ? ["off", "weekend", "ph", "union"] : ["off", "weekend", "union"]) : ["off", "night", "day", "daynight", "ph", "uniond", "union"];
-    for (const t of TYPES.filter(t => allowed.includes(t.k))) {
-      const pressed = e.type === t.k || (wkDay && t.k === "union" && e.type === "uniond") || (wkDay && t.k === "weekend" && ["night", "day", "daynight"].concat(isXmas(id) ? [] : ["ph"]).includes(e.type));
-      seg.append(h("button", { "aria-pressed": pressed ? "true" : "false", onclick: () => {
+    const phDay = isPHDay(id);
+    // Shift types laid out in three columns: off/nights, day work, union.
+    const columns = phDay ? [["off"], ["ph"], ["unionph"]] : wkDay ? [["off"], ["weekend"], ["union"]] : [["off", "night"], ["day", "daynight"], ["uniond", "union"]];
+    const colEls = columns.map(() => h("div", { class: "col" }));
+    colEls.forEach(c => seg.append(c));
+    for (const t of TYPES.filter(t => columns.some(c => c.includes(t.k)))) {
+      const colEl = colEls[columns.findIndex(c => c.includes(t.k))];
+      const pressed = e.type === t.k || (phDay && t.k === "ph" && ["night", "day", "daynight", "weekend"].includes(e.type)) || (phDay && t.k === "unionph" && ["union", "uniond"].includes(e.type)) || (wkDay && t.k === "union" && e.type === "uniond") || (wkDay && t.k === "weekend" && ["night", "day", "daynight"].concat(isXmas(id) ? [] : ["ph"]).includes(e.type));
+      colEl.append(h("button", { "aria-pressed": pressed ? "true" : "false", onclick: () => {
         const patch = { type: t.k };
         if (t.k !== "off" && !(Number(e.hours) > 0)) patch.hours = 8.5;
         update(id, patch);
@@ -627,7 +638,7 @@ details.panel[open] > summary::after { content: "−"; }
       ));
     }
 
-    if (e.type === "union" || e.type === "uniond") {
+    if (e.type === "union" || e.type === "uniond" || e.type === "unionph") {
       const si = h("input", { id: "site-" + id, type: "number", inputmode: "decimal", step: "0.05", min: "0", value: Number(e.site ?? s.siteDefault).toFixed(2) });
       si.addEventListener("change", () => update(id, { site: Math.max(0, Number(si.value) || 0) }));
       wrap.append(h("div", { class: "field" },
@@ -687,7 +698,7 @@ details.panel[open] > summary::after { content: "−"; }
     const left = rows[rows.length - 1].amt;
     const warn = $("budgetWarn");
     warn.hidden = !(left < -0.005);
-    if (left < -0.005) warn.textContent = "Your budget is " + money(-left) + " more than this week's take-home. Lower a category in settings.";
+    if (left < -0.005) warn.textContent = "Your budget is " + money(-left) + " more than this week's take-home. Lower one of your categories in settings.";
   }
 
   function renderHistory() {
@@ -713,7 +724,7 @@ details.panel[open] > summary::after { content: "−"; }
     ]],
     ["Weekends and public holidays", [
       ["weekendMult", "Weekend multiplier"], ["weekendLoading", "Add night loading on weekends", "bool"],
-      ["phMult", "Public holiday multiplier (plus loading)"], ["phBonusHrs", "Public holiday bonus (hours at base)"]
+      ["phMult", "Public holiday multiplier (plus loading)"], ["phBonusHrs", "Public holiday bonus (hours at base)"], ["unionPhMult", "Union public holiday multiplier"]
     ]],
     ["Union sites", [
       ["unionRate", "Union hourly rate ($)"], ["unionMult", "Union night multiplier"], ["siteDefault", "Usual site allowance ($/h)"],
@@ -730,7 +741,7 @@ details.panel[open] > summary::after { content: "−"; }
     ]],
     ["Tax", [
       ["taxOn", "Estimate tax", "bool"], ["taxFree", "Claiming the tax-free threshold", "bool"],
-      ["medicare", "Include Medicare levy", "bool"], ["extraTax", "Extra withheld each week ($, e.g. HELP)"]
+      ["medicare", "Include Medicare levy", "bool"], ["extraTax", "Extra tax withheld each week ($, e.g. HELP)"]
     ]]
   ];
 
@@ -752,16 +763,49 @@ details.panel[open] > summary::after { content: "−"; }
       }
       box.append(g);
     }
-    const bg = h("div", { class: "sgroup" }, h("h3", { text: "Budget split" }), h("span", { class: "hint", text: "Set each category as a % of take-home or a fixed $ amount. Disposable income gets whatever is left. Use the box under each one to note what it covers, and it shows in your weekly split." }));
+    const bg = h("div", { class: "sgroup" }, h("h3", { text: "Budget split" }), h("span", { class: "hint", text: "You can set each category as a percentage of your take-home pay or as a fixed dollar amount. Whatever is left over goes to disposable income. Use the box under each category to note what it covers, and the note will show in your weekly split. Tap Edit to rename a category, tap ✕ twice to delete it, or add your own below." }));
     budget.forEach((b, i) => {
+      const nameCell = h("div", { class: "bname" });
+      const showName = () => {
+        nameCell.textContent = "";
+        nameCell.append(h("span", { text: b.name }),
+          h("button", { type: "button", class: "iconbtn", "aria-label": "Rename " + b.name, onclick: editName, text: "Edit" }),
+          h("button", { type: "button", class: "iconbtn danger" + (deleteArmed === b.key ? " armed" : ""), "aria-label": "Delete " + b.name, onclick: () => {
+            if (deleteArmed !== b.key) { deleteArmed = b.key; renderSettings(); return; }
+            deleteArmed = null; budget.splice(i, 1); persistSettings(); renderSettings(); render();
+          }, text: deleteArmed === b.key ? "Delete?" : "✕" }));
+      };
+      function editName() {
+        nameCell.textContent = "";
+        const inp = h("input", { type: "text", maxlength: "40", value: b.name, "aria-label": "Name for this budget split" });
+        let done = false;
+        const save = () => {
+          if (done) return; done = true;
+          const t = inp.value.replace(/\s+/g, " ").trim().slice(0, 40);
+          if (t) { budget[i].name = t; persistSettings(); render(); }
+          renderSettings();
+        };
+        inp.addEventListener("keydown", ev => { if (ev.key === "Enter") save(); else if (ev.key === "Escape") { done = true; renderSettings(); } });
+        inp.addEventListener("blur", save);
+        nameCell.append(inp, h("button", { type: "button", class: "iconbtn", onmousedown: ev => ev.preventDefault(), onclick: save, text: "Save" }));
+        inp.focus(); inp.select();
+      }
+      showName();
       const v = h("input", { id: "bud-" + b.key, type: "number", inputmode: "decimal", step: "any", min: "0", value: b.value, "aria-label": b.name + " amount" });
       v.addEventListener("change", () => { budget[i].value = Math.max(0, Number(v.value) || 0); persistSettings(); render(); });
       const m = h("select", { id: "budm-" + b.key, "aria-label": b.name + " unit" }, h("option", { value: "pct", text: "%", selected: b.mode === "pct" }), h("option", { value: "fixed", text: "$", selected: b.mode === "fixed" }));
       m.addEventListener("change", () => { budget[i].mode = m.value; persistSettings(); render(); });
       const nt = h("input", { id: "budn-" + b.key, type: "text", maxlength: "120", value: b.note || "", placeholder: ({ rent: "e.g. rent or mortgage, due date", bills: "e.g. power, gas, phone, streaming", food: "e.g. groceries, work lunches", loans: "e.g. car, personal loan", saving: "e.g. emergency fund, holiday", investing: "e.g. ETFs, super top-up" })[b.key] || "What this covers", "aria-label": "What " + b.name + " covers" });
       nt.addEventListener("change", () => { const t = nt.value.trim().slice(0, 120); if (t) budget[i].note = t; else delete budget[i].note; persistSettings(); render(); });
-      bg.append(h("div", { class: "brow-group" }, h("div", { class: "brow-edit" }, h("span", { text: b.name }), v, m), nt));
+      bg.append(h("div", { class: "brow-group" }, h("div", { class: "brow-edit" }, nameCell, v, m), nt));
     });
+    if (budget.length < MAX_BUDGET) bg.append(h("button", { type: "button", class: "resetbtn", onclick: () => {
+      let n = 1; while (budget.some(b => b.key === "custom" + n)) n++;
+      budget.push({ key: "custom" + n, name: "New split", mode: "pct", value: 0 });
+      deleteArmed = null; persistSettings(); renderSettings(); render();
+      const last = document.querySelectorAll("#settingsBox .bname button")[budget.length * 2 - 2];
+      if (last) last.click();
+    }, text: "+ Add budget split" }));
     box.append(bg);
     box.append(h("button", { class: "resetbtn", onclick: () => {
       settings = { ...DEFAULT_SETTINGS }; budget = DEFAULT_BUDGET.map(b => ({ ...b }));
@@ -793,10 +837,10 @@ details.panel[open] > summary::after { content: "−"; }
     let data;
     try { data = JSON.parse($("backupText").value); } catch (_) { data = null; }
     if (!data || data.app !== "shiftpay") { $("backupMsg").textContent = "That doesn't look like a backup from this app. Paste the whole text."; return; }
-    if (!restoreArmed) { restoreArmed = true; $("restoreBackup").textContent = "Tap again to replace your current log"; return; }
+    if (!restoreArmed) { restoreArmed = true; $("restoreBackup").textContent = "Tap again to replace your current log."; return; }
     restoreArmed = false; $("restoreBackup").textContent = "Restore from backup";
     days = cleanDays(data.days); applyLoaded(data); lsSave(); renderSettings(); render();
-    $("backupMsg").textContent = "Restored " + Object.keys(days).length + " days.";
+    $("backupMsg").textContent = "Restored " + Object.keys(days).length + (Object.keys(days).length === 1 ? " day." : " days.");
   });
   $("prev").addEventListener("click", () => { weekStart = addDays(weekStart, -7); openDay = null; render(); });
   $("next").addEventListener("click", () => { weekStart = addDays(weekStart, 7); openDay = null; render(); });
@@ -810,14 +854,24 @@ details.panel[open] > summary::after { content: "−"; }
     }
     return out;
   }
+  // Budget splits can be renamed, added and deleted, so keep whatever list was saved (cleaned).
   function cleanBudget(raw) {
-    return DEFAULT_BUDGET.map(d => {
-      const b = Array.isArray(raw) ? raw.find(x => x && x.key === d.key) : null;
-      if (!b) return { ...d };
+    if (!Array.isArray(raw)) return DEFAULT_BUDGET.map(b => ({ ...b }));
+    const out = [], seen = new Set();
+    for (const b of raw.slice(0, MAX_BUDGET)) {
+      if (!b || typeof b !== "object") continue;
+      let key = typeof b.key === "string" && /^[a-z][a-z0-9-]{0,39}$/.test(b.key) ? b.key : "";
+      if (!key || seen.has(key)) { let n = 1; while (seen.has("custom" + n)) n++; key = "custom" + n; }
+      seen.add(key);
+      const d = DEFAULT_BUDGET.find(x => x.key === key);
+      let name = typeof b.name === "string" ? b.name.replace(/\s+/g, " ").trim().slice(0, 40) : "";
+      if (!name) name = d ? d.name : "Budget split";
+      if (key === "rent" && name === "Rent") name = "Mortgage/Rent";
       const v = Number(b.value);
-      return { ...d, mode: b.mode === "fixed" ? "fixed" : "pct", value: isFinite(v) && v >= 0 ? v : 0,
-        ...(typeof b.note === "string" ? { note: b.note.slice(0, 120) } : {}) };
-    });
+      out.push({ key, name, mode: b.mode === "fixed" ? "fixed" : "pct", value: isFinite(v) && v >= 0 && v < 1e7 ? v : 0,
+        ...(typeof b.note === "string" && b.note.trim() ? { note: b.note.slice(0, 120) } : {}) });
+    }
+    return out;
   }
   function cleanDays(raw) {
     const out = {};
@@ -832,12 +886,12 @@ details.panel[open] > summary::after { content: "−"; }
   }
   function applyLoaded(data) {
     if (data.settings) settings = cleanSettings(data.settings);
-    if (Array.isArray(data.budget) && data.budget.length) budget = cleanBudget(data.budget);
+    if (Array.isArray(data.budget)) budget = cleanBudget(data.budget);
   }
   function startExampleIfEmpty() {
     if (false) {
       days = exampleDays(); isExample = true;
-      showNotice("Example week. These shifts show how it works. Log your first shift and they disappear.", false,
+      showNotice("This is an example week to show how the app works. The example shifts disappear when you log your first shift.", false,
         { label: "Clear example", fn: () => { days = {}; isExample = false; $("notice").hidden = true; render(); } });
     }
   }
@@ -845,14 +899,13 @@ details.panel[open] > summary::after { content: "−"; }
   // first paint without storage
   startExampleIfEmpty(); renderSettings(); render();
 
-  // local fallback first, then upgrade to the synced store if available
+  // Load whatever is saved on this device.
   const local = lsLoad();
   if (local) { days = cleanDays(local.days); isExample = false; $("notice").hidden = true; applyLoaded(local); startExampleIfEmpty(); renderSettings(); render(); }
 
   // Everything is stored on this device only. There is no account and no server.
-  mode = "local";
   if (!(settings.base > 0)) {
-    showNotice("Start by entering your base hourly rate under Rates, tax and budget settings. Union rates, allowances and the 40 hour minimum are already set from the EBA. Everything you enter stays on this phone.", false,
+    showNotice("Start by entering your base hourly rate under Rates, tax and budget settings. Union rates, allowances and the 40-hour minimum are already set from the EBA. Everything you enter stays on this phone.", false,
       { label: "Open settings", fn: () => { $("settingsBox").open = true; $("settingsBox").scrollIntoView({ behavior: "smooth" }); } });
   }
 })();
