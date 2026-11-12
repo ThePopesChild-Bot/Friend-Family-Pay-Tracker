@@ -247,17 +247,18 @@ details.panel[open] > summary::after { content: "−"; }
     <summary>How the maths works</summary>
     <ul class="assume" style="padding-top:14px">
       <li><b>Hours you enter are on-site hours,</b> including your unpaid break. The app takes the break off before working out your pay.</li>
-      <li><b>Weeknight:</b> paid hours up to the first overtime point are paid at base + night loading. Hours between the first and second points are paid at the first multiplier × base + loading. Hours after the second point are paid at the second multiplier × base + loading.</li>
+      <li><b>Weeknight:</b> paid hours up to the first overtime point are paid at base + night loading. Overtime gets no night loading: hours between the first and second points are paid at the first multiplier × base, and hours after the second point at the second multiplier × base.</li>
       <li><b>Weekend:</b> any shift that starts on a Saturday or Sunday is paid at the weekend multiplier × base for every paid hour, however long the shift is. Union shifts on a weekend are paid at the union rate × the union night multiplier.</li>
       <li><b>Day shift:</b> paid at the base rate with no night loading, using the same overtime points and multipliers as nights.</li>
       <li><b>Dayshift on Nights:</b> the first set number of hours are paid at the first multiplier × base, and the rest at the second multiplier × base. There is no night loading and there are no overtime tiers.</li>
       <li><b>Union day:</b> paid at the union rate up to the union day overtime point, then at the union day multiplier. <b>Union night</b> is always paid at the union night multiplier.</li>
       <li><b>Inclement weather</b> (union shifts only): tick it and enter the paid hours worked from when it started raining. On a union night (or any union weekend shift) those hours go from the union night multiplier to the union night inclement weather multiplier. On a union day they go from the normal union rate to the union day inclement weather multiplier, and any of them already in overtime stay at the overtime rate. The site allowance still applies to every hour.</li>
       <li><b>Union site:</b> the union rate × the union multiplier, plus the site allowance you enter for that day, for every paid hour.</li>
-      <li><b>Public holiday:</b> the public holiday multiplier × base + loading for every paid hour, plus any bonus hours at base.</li>
-      <li><b>Public holiday off:</b> a public holiday you don't work is paid at base + night loading for the paid hours, with no bonus hours.</li>
-      <li><b>Union public holiday:</b> the union rate × the union public holiday multiplier, plus the site allowance, for every paid hour, plus the public holiday bonus hours at base. On a public holiday, the choices are Off, Public holiday off, Public holiday and Union public holiday.</li>
+      <li><b>Public holiday:</b> the public holiday multiplier × base for every paid hour, with no night loading.</li>
+      <li><b>Public holiday off:</b> a public holiday you don't work is paid at base + night loading for the paid hours.</li>
+      <li><b>Union public holiday:</b> the union rate × the union public holiday multiplier, plus the site allowance, for every paid hour. On a public holiday, the choices are Off, Public holiday off, Public holiday and Union public holiday.</li>
       <li><b>Hyrail</b> is paid for each paid hour, <b>on-call</b> is paid per day, and <b>living away from home</b> is paid per night. Set any of these to 0 if you don't get them.</li>
+      <li><b>Annual leave and RDOs:</b> every weekday shift you work has some hours taken out of your pay and banked as leave. Annual leave comes out at the base rate. Annual leave is the weekly hours split over 5 shifts (2 hours a week is 0.4 hours a shift). RDO time is only taken from union shifts (8 hours per 10 union shifts is 0.8 hours a shift), at the union night rate on union nights and the ordinary union rate on union days. Nothing is banked on weekends. Your hours worked don't change, only the pay. Set these to 0 if you don't bank leave this way.</li>
       <li><b>Minimum hours:</b> if you set guaranteed weekly hours and turn on the top-up, any shortfall in a week is topped up at base + loading.</li>
       <li><b>Tax</b> is an estimate of PAYG withholding at 2026–27 Australian resident rates, plus the 2% Medicare levy, treating each week as 1/52 of a year. Your payslip may differ slightly.</li>
       <li><b>Victorian public holidays</b> for 2026 and 2027 are marked. Melbourne Cup Day applies to metro Melbourne only.</li>
@@ -272,10 +273,10 @@ details.panel[open] > summary::after { content: "−"; }
 
   // ---------- defaults ----------
   const DEFAULT_SETTINGS = {
-    base: 0, loadingPct: 30, breakHrs: 0.5,
+    base: 0, loadingPct: 30, breakHrs: 0.5, rulesV: 2,
     t1Start: 8.5, t1Mult: 1.5, t2Start: 10.5, t2Mult: 2,
     weekendMult: 2, weekendLoading: false,
-    phMult: 2, phBonusHrs: 8, unionPhMult: 2, wetMult: 3, wetDayMult: 2,
+    phMult: 2.5, unionPhMult: 2, alWeekHrs: 2, rdoHrs: 8, rdoShifts: 10, wetMult: 3, wetDayMult: 2,
     unionRate: 56.5, unionMult: 2, siteDefault: 7.5,
     unionDayOtStart: 8.5, unionDayOtMult: 2,
     dnFirstHrs: 2, dnMult1: 1.5, dnMult2: 2,
@@ -369,13 +370,14 @@ details.panel[open] > summary::after { content: "−"; }
     const working = e.type !== "off" && onsite > 0;
     const paid = working ? Math.max(0, onsite - s.breakHrs) : 0;
     if ((type === "night" || type === "day") && paid > 0) {
-      const LL = type === "night" ? L : 0, tag = type === "night" ? " + loading" : "";
+      // Night loading applies to ordinary hours only, never to overtime.
+      const LL = type === "night" ? L : 0;
       const p1 = Math.max(0, s.t1Start - s.breakHrs), p2 = Math.max(p1, s.t2Start - s.breakHrs);
       const ord = Math.min(paid, p1), ot1 = Math.max(0, Math.min(paid, p2) - p1), ot2 = Math.max(0, paid - p2);
-      const r0 = B + LL, r1 = B * s.t1Mult + LL, r2 = B * s.t2Mult + LL;
+      const r0 = B + LL, r1 = B * s.t1Mult, r2 = B * s.t2Mult;
       if (ord) lines.push({ k: (type === "night" ? "Ordinary night" : "Ordinary day") + " (up to " + s.t1Start + "h on site)", h: ord, r: r0, v: ord * r0 });
-      if (ot1) lines.push({ k: s.t1Mult + "x" + tag + " (" + s.t1Start + "–" + s.t2Start + "h on site)", h: ot1, r: r1, v: ot1 * r1 });
-      if (ot2) lines.push({ k: s.t2Mult + "x" + tag + " (after " + s.t2Start + "h on site)", h: ot2, r: r2, v: ot2 * r2 });
+      if (ot1) lines.push({ k: s.t1Mult + "x (" + s.t1Start + "–" + s.t2Start + "h on site)", h: ot1, r: r1, v: ot1 * r1 });
+      if (ot2) lines.push({ k: s.t2Mult + "x (after " + s.t2Start + "h on site)", h: ot2, r: r2, v: ot2 * r2 });
     } else if (type === "daynight" && paid > 0) {
       const first = Math.min(paid, s.dnFirstHrs), rest = Math.max(0, paid - s.dnFirstHrs);
       const r1 = B * s.dnMult1, r2 = B * s.dnMult2;
@@ -385,9 +387,8 @@ details.panel[open] > summary::after { content: "−"; }
       const r = B * s.weekendMult + (s.weekendLoading ? L : 0);
       lines.push({ k: "Weekend " + s.weekendMult + "x", h: paid, r, v: paid * r });
     } else if (type === "ph") {
-      const r = B * s.phMult + L;
-      if (paid) lines.push({ k: "Public holiday " + s.phMult + "x + loading", h: paid, r, v: paid * r });
-      if (s.phBonusHrs) lines.push({ k: "Public holiday bonus", h: s.phBonusHrs, r: B, v: s.phBonusHrs * B });
+      const r = B * s.phMult;
+      if (paid) lines.push({ k: "Public holiday " + s.phMult + "x", h: paid, r, v: paid * r });
     } else if (type === "phoff" && paid > 0) {
       // A public holiday you don't work: paid hours at base + night loading, no bonus.
       const r = B + L;
@@ -396,7 +397,6 @@ details.panel[open] > summary::after { content: "−"; }
       const site = Number(e.site) || 0, r = s.unionRate * s.unionPhMult;
       if (paid) lines.push({ k: "Union public holiday " + s.unionPhMult + "x", h: paid, r, v: paid * r });
       if (paid && site) lines.push({ k: "Site allowance", h: paid, r: site, v: paid * site });
-      if (s.phBonusHrs) lines.push({ k: "Public holiday bonus", h: s.phBonusHrs, r: B, v: s.phBonusHrs * B });
     } else if ((type === "union" || type === "uniond") && paid > 0) {
       const site = Number(e.site) || 0;
       if (type === "union" || wkd) {
@@ -424,6 +424,18 @@ details.panel[open] > summary::after { content: "−"; }
     if (e.hyrail && paid > 0) lines.push({ k: "Hyrail", h: paid, r: s.hyrail, v: paid * s.hyrail });
     if (e.oncall) lines.push({ k: "On-call", v: s.oncall, flat: true });
     if (e.lafh) lines.push({ k: "Living away from home", v: s.lafh, flat: true });
+    // Leave banking: each weekday shift worked has some hours taken out at the base rate and banked.
+    // Annual leave is spread over a 5-shift week; RDO time comes off union shifts only. Weekends never bank.
+    if (paid > 0 && !wkd && type !== "phoff") {
+      const al = (Number(s.alWeekHrs) || 0) / 5;
+      if (al > 0) lines.push({ k: "Annual leave banked (taken from base)", h: al, r: B, v: -al * B });
+      if ((type === "union" || type === "uniond" || type === "unionph") && s.rdoShifts > 0) {
+        const rdo = (Number(s.rdoHrs) || 0) / s.rdoShifts;
+        // RDO time comes off at the shift's own union rate: union night rate on nights, ordinary union rate on days.
+        const rr = type === "uniond" ? s.unionRate : s.unionRate * s.unionMult;
+        if (rdo > 0) lines.push({ k: type === "uniond" ? "RDO banked (union day rate)" : "RDO banked (union night rate)", h: rdo, r: rr, v: -rdo * rr });
+      }
+    }
     const total = lines.reduce((a, l) => a + l.v, 0);
     return { lines, paid, total: round2(total) };
   }
@@ -465,7 +477,7 @@ details.panel[open] > summary::after { content: "−"; }
       out.days.push({ id, e, r });
       out.gross += r.total; out.paid += r.paid;
       if (e && e.type !== "off") out.logged = true;
-      if (e && e.type === "ph") out.counted += Math.max(r.paid, settings.phBonusHrs || 0); else out.counted += r.paid;
+      out.counted += r.paid;
       for (const l of r.lines) {
         const g = out.groups[l.k] || (out.groups[l.k] = { h: 0, v: 0, flat: l.flat, n: 0 });
         g.h += l.h || 0; g.v += l.v; g.n += 1;
@@ -760,7 +772,7 @@ details.panel[open] > summary::after { content: "−"; }
     ]],
     ["Weekends and public holidays", [
       ["weekendMult", "Weekend multiplier"], ["weekendLoading", "Add night loading on weekends", "bool"],
-      ["phMult", "Public holiday multiplier (plus loading)"], ["phBonusHrs", "Public holiday bonus (hours at base)"], ["unionPhMult", "Union public holiday multiplier"]
+      ["phMult", "Public holiday multiplier"], ["unionPhMult", "Union public holiday multiplier"]
     ]],
     ["Union sites", [
       ["unionRate", "Union hourly rate ($)"], ["unionMult", "Union night multiplier"], ["siteDefault", "Usual site allowance ($/h)"],
@@ -771,6 +783,9 @@ details.panel[open] > summary::after { content: "−"; }
     ]],
     ["Allowances", [
       ["hyrail", "Hyrail ($ per hour)"], ["oncall", "On-call ($ per day)"], ["lafh", "Living away from home ($ per night)"]
+    ]],
+    ["Leave banking (weekday shifts only)", [
+      ["alWeekHrs", "Annual leave banked per week (hours, spread over 5 shifts)"], ["rdoHrs", "RDO hours earned"], ["rdoShifts", "…for every this many union shifts"]
     ]],
     ["Full-time minimum", [
       ["minHours", "Guaranteed paid hours a week"], ["topUp", "Top up short weeks to the minimum", "bool"]
@@ -888,6 +903,9 @@ details.panel[open] > summary::after { content: "−"; }
       if (typeof d === "boolean" && typeof v === "boolean") out[k] = v;
       else if (typeof d === "number" && typeof v === "number" && isFinite(v) && v >= 0 && v < 1e6) out[k] = v;
     }
+    // Older saves used 2x + loading for public holidays; payslips show a flat 2.5x.
+    if (raw && typeof raw === "object" && raw.rulesV !== 2 && out.phMult === 2) out.phMult = 2.5;
+    out.rulesV = 2;
     return out;
   }
   // Budget splits can be renamed, added and deleted, so keep whatever list was saved (cleaned).
